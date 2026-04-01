@@ -982,7 +982,7 @@ if(!load()){
 
 <script>
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('sw.js').catch(()=>{});
+  navigator.serviceWorker.getRegistrations().then(regs=>{regs.forEach(r=>r.unregister());});navigator.serviceWorker.register('/dawai/sw.js',{scope:'/dawai/'}).catch(()=>{});
 }
 </script>
 </body>
