@@ -1,5 +1,10 @@
-const CACHE = 'dawai-v1';
-const ASSETS = ['/', '/index.html', '/manifest.json'];
+const CACHE = 'dawai-v2';
+const BASE = '/dawai';
+const ASSETS = [
+  BASE + '/',
+  BASE + '/index.html',
+  BASE + '/manifest.json',
+];
 
 self.addEventListener('install', e => {
   e.waitUntil(
@@ -17,7 +22,7 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   e.respondWith(
-    caches.match(e.request).then(r => r || fetch(e.request).catch(() => caches.match('/index.html')))
+    caches.match(e.request).then(r => r || fetch(e.request).catch(() => caches.match(BASE + '/index.html')))
   );
 });
 
@@ -25,6 +30,6 @@ self.addEventListener('notificationclick', e => {
   e.notification.close();
   e.waitUntil(clients.matchAll({type:'window'}).then(cs => {
     if(cs.length) return cs[0].focus();
-    return clients.openWindow('/');
+    return clients.openWindow(BASE + '/');
   }));
 });
