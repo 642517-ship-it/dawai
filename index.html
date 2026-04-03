@@ -222,6 +222,26 @@ body { font-family: 'IBM Plex Sans Arabic', system-ui, sans-serif; color: var(--
 .manage-row:last-child { border-bottom: none; }
 .del-btn { width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--red-border); background: var(--red-bg); color: var(--red-light); cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; }
 
+/* FREQ TABS */
+.freq-tabs { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 14px; }
+.freq-tab { height: 38px; border: 1px solid var(--border2); border-radius: var(--radius-sm); background: transparent; color: var(--text2); font-size: 12px; font-family: inherit; cursor: pointer; transition: all 0.15s; }
+.freq-tab.active { border-color: var(--green); background: var(--green-bg); color: var(--green-light); font-weight: 500; }
+
+/* DAYS GRID */
+.days-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 4px; margin-bottom: 12px; }
+.day-chip { height: 36px; border: 1px solid var(--border2); border-radius: 8px; background: transparent; color: var(--text2); font-size: 11px; font-family: inherit; cursor: pointer; transition: all 0.15s; padding: 0; }
+.day-chip.sel { border-color: var(--green); background: var(--green-bg); color: var(--green-light); font-weight: 600; }
+
+/* DOSE SLOTS */
+.dose-slot { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 8px; }
+.dose-slot-title { font-size: 11px; color: var(--green-light); font-weight: 600; margin-bottom: 8px; }
+
+/* DAILY QTY STEPPER */
+.qty-stepper { display: flex; align-items: center; gap: 0; height: 44px; background: var(--bg3); border: 1px solid var(--border2); border-radius: var(--radius-sm); overflow: hidden; }
+.qty-stepper button { width: 44px; height: 44px; border: none; background: transparent; color: var(--green-light); font-size: 20px; cursor: pointer; flex-shrink: 0; transition: background 0.15s; }
+.qty-stepper button:hover { background: var(--green-bg); }
+.qty-stepper span { flex: 1; text-align: center; font-size: 16px; font-weight: 600; color: var(--text); border-right: 1px solid var(--border); border-left: 1px solid var(--border); }
+
 /* LOGIN */
 #login-screen { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 24px; }
 .login-box { width: 100%; max-width: 360px; }
@@ -445,21 +465,66 @@ body { font-family: 'IBM Plex Sans Arabic', system-ui, sans-serif; color: var(--
             <div class="form-field"><label class="form-label">اسم الدواء</label><input class="form-input" id="f-name" placeholder="مثال: باراسيتامول"></div>
             <div class="form-field"><label class="form-label">الجرعة</label><input class="form-input" id="f-dose" placeholder="500mg"></div>
           </div>
-          <div class="form-row2">
-            <div class="form-field"><label class="form-label">وقت التناول</label><input class="form-input" id="f-time" type="time" value="08:00"></div>
-            <div class="form-field"><label class="form-label">الفترة</label>
-              <select class="form-select" id="f-period">
-                <option value="morning">☀️ صباح</option>
-                <option value="noon">🌤️ ظهر</option>
-                <option value="evening">🌆 مساء</option>
-                <option value="night">🌙 ليل</option>
-              </select>
+
+          <!-- جدولة التناول -->
+          <div class="form-field">
+            <label class="form-label">جدولة التناول</label>
+            <div class="freq-tabs">
+              <button class="freq-tab active" id="ftab-daily" onclick="setFreq('daily')">يومي</button>
+              <button class="freq-tab" id="ftab-weekly" onclick="setFreq('weekly')">أيام محددة</button>
+              <button class="freq-tab" id="ftab-once" onclick="setFreq('once')">مرة واحدة</button>
             </div>
           </div>
-          <div class="form-row2">
-            <div class="form-field"><label class="form-label">الكمية الابتدائية</label><input class="form-input" id="f-qty" type="number" placeholder="100" min="1"></div>
-            <div class="form-field"><label class="form-label">استهلاك يومي</label><input class="form-input" id="f-daily" type="number" value="1" min="1"></div>
+
+          <!-- أيام الأسبوع (تظهر فقط عند اختيار "أيام محددة") -->
+          <div class="form-field" id="f-days-section" style="display:none">
+            <label class="form-label">اختر أيام الأسبوع</label>
+            <div class="days-grid">
+              <button class="day-chip" data-day="0" onclick="toggleDay(this)">أحد</button>
+              <button class="day-chip" data-day="1" onclick="toggleDay(this)">إثنين</button>
+              <button class="day-chip" data-day="2" onclick="toggleDay(this)">ثلاثاء</button>
+              <button class="day-chip" data-day="3" onclick="toggleDay(this)">أربعاء</button>
+              <button class="day-chip" data-day="4" onclick="toggleDay(this)">خميس</button>
+              <button class="day-chip" data-day="5" onclick="toggleDay(this)">جمعة</button>
+              <button class="day-chip" data-day="6" onclick="toggleDay(this)">سبت</button>
+            </div>
           </div>
+
+          <!-- الاستهلاك اليومي (Stepper) -->
+          <div class="form-row2">
+            <div class="form-field">
+              <label class="form-label">الكمية الابتدائية</label>
+              <input class="form-input" id="f-qty" type="number" placeholder="100" min="1">
+            </div>
+            <div class="form-field">
+              <label class="form-label">استهلاك يومي</label>
+              <div class="qty-stepper">
+                <button onclick="changeDaily(-1)">−</button>
+                <span id="f-daily-display">1</span>
+                <button onclick="changeDaily(1)">+</button>
+              </div>
+              <input type="hidden" id="f-daily" value="1">
+            </div>
+          </div>
+
+          <!-- جرعة واحدة: وقت + فترة -->
+          <div id="f-single-slot">
+            <div class="form-row2">
+              <div class="form-field"><label class="form-label">وقت التناول</label><input class="form-input" id="f-time" type="time" value="08:00"></div>
+              <div class="form-field"><label class="form-label">الفترة</label>
+                <select class="form-select" id="f-period">
+                  <option value="morning">☀️ صباح</option>
+                  <option value="noon">🌤️ ظهر</option>
+                  <option value="evening">🌆 مساء</option>
+                  <option value="night">🌙 ليل</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- جرعات متعددة: لكل جرعة وقت وفترة -->
+          <div id="f-multi-slots" style="display:none"></div>
+
           <div class="form-field"><label class="form-label">تحذير عند الوصول إلى</label><input class="form-input" id="f-warn" type="number" value="10" min="1" placeholder="10 حبات"></div>
           <button class="add-submit" onclick="addMed()">+ إضافة الدواء</button>
         </div>
@@ -658,58 +723,92 @@ function seedDemo(){
 // ═══════════════════════════════════
 // TODAY
 // ═══════════════════════════════════
+function isMedScheduledToday(m){
+  const freq=m.freq||'daily';
+  if(freq==='daily') return true;
+  if(freq==='once'){
+    // show only if never taken
+    const rec=history[tdyk()]||{};
+    return !rec[m.id];
+  }
+  if(freq==='weekly'){
+    const todayDow=TODAY.getDay();
+    return m.days&&m.days.map(Number).includes(todayDow);
+  }
+  return true;
+}
 function renderToday(){
   renderStockAlerts();
   const rec=history[tdyk()]||{};
-  const total=meds.length, done=meds.filter(m=>rec[m.id]).length;
-  document.getElementById('s-done').textContent=done;
-  document.getElementById('s-pend').textContent=total-done;
-  const pct=total?Math.round(done/total*100):0;
+  const todayMeds=meds.filter(isMedScheduledToday);
+  // expand multi-dose slots into individual entries
+  let entries=[];
+  todayMeds.forEach(m=>{
+    const slots=m.slots&&m.slots.length>1?m.slots:[{time:m.time,period:m.period}];
+    slots.forEach((sl,si)=>{
+      entries.push({m,slotIdx:si,time:sl.time,period:sl.period,slotKey:m.id+'_'+si});
+    });
+  });
+  entries.sort((a,b)=>t2m(a.time)-t2m(b.time));
+  // count done: per-med (all slots done = med done)
+  const medDone=todayMeds.filter(m=>{
+    const slots=m.slots&&m.slots.length>1?m.slots:[null];
+    return slots.every((_,si)=>rec[m.id+'_'+si]||rec[m.id]);
+  }).length;
+  const total=todayMeds.length;
+  document.getElementById('s-done').textContent=medDone;
+  document.getElementById('s-pend').textContent=total-medDone;
+  const pct=total?Math.round(medDone/total*100):0;
   document.getElementById('prog').style.width=pct+'%';
-  document.getElementById('prog-lbl').textContent=done+' من '+total;
+  document.getElementById('prog-lbl').textContent=medDone+' من '+total;
   document.getElementById('prog-pct').textContent=pct+'%';
   const el=document.getElementById('med-list');
-  const sorted=[...meds].sort((a,b)=>t2m(a.time)-t2m(b.time));
-  if(!sorted.length){el.innerHTML='<div class="empty"><span>💊</span>لا توجد أدوية<br>أضف دواءك الأول من تبويب +</div>';return;}
-  el.innerHTML=sorted.map(m=>{
+  if(!entries.length){el.innerHTML='<div class="empty"><span>💊</span>لا توجد أدوية اليوم<br>أضف دواءك الأول من تبويب +</div>';return;}
+  el.innerHTML=entries.map(({m,slotIdx,time,period,slotKey})=>{
+    const doneKey=m.slots&&m.slots.length>1?slotKey:m.id;
+    const isDone=rec[doneKey]||false;
     const st=stockSt(m);
     const stockHint=st!=='ok'?` · <span style="color:${st==='crit'?'var(--red-light)':'var(--amber-light)'};font-size:11px">متبقي ${m.qty}</span>`:'';
-    const isLate=!rec[m.id]&&t2m(m.time)<nowM();
+    const isLate=!isDone&&t2m(time)<nowM();
+    const slotLabel=m.slots&&m.slots.length>1?` <span style="font-size:10px;color:var(--green-light);background:var(--green-bg);padding:1px 6px;border-radius:4px">ج${slotIdx+1}</span>`:'';
+    const schHint=m.freq==='weekly'&&m.days?` · ${m.days.map(d=>DAY_SHORT[d]).join('،')}`:'';
     return`<div class="med-row">
-      <div class="med-ic" style="background:${PBG[m.period]}">${ICONS[m.period]}</div>
+      <div class="med-ic" style="background:${PBG[period]}">${ICONS[period]}</div>
       <div class="med-body">
-        <div class="med-title" style="${rec[m.id]?'text-decoration:line-through;opacity:0.4':''}">${m.name}</div>
-        <div class="med-sub${isLate?' late':''}">${m.time} · ${m.dose}${stockHint}</div>
+        <div class="med-title" style="${isDone?'text-decoration:line-through;opacity:0.4':''}">${m.name}${slotLabel}</div>
+        <div class="med-sub${isLate?' late':''}">${time} · ${m.dose}${schHint}${stockHint}</div>
       </div>
-      <button class="pill-check${rec[m.id]?' done':''}" onclick="toggleMed(${m.id})">
+      <button class="pill-check${isDone?' done':''}" onclick="toggleSlot(${m.id},${slotIdx},'${JSON.stringify(m.slots&&m.slots.length>1).toString()}')">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="20,6 9,17 4,12"/></svg>
       </button>
     </div>`;
   }).join('');
 }
 
-function toggleMed(id){
+function toggleSlot(id, slotIdx, isMultiStr){
   if(!history[tdyk()]) history[tdyk()]={};
-  const wasOff=!history[tdyk()][id];
-  history[tdyk()][id]=wasOff;
   const m=meds.find(x=>x.id===id);
+  const isMulti=m.slots&&m.slots.length>1;
+  const key=isMulti?(id+'_'+slotIdx):id;
+  const wasOff=!history[tdyk()][key];
+  history[tdyk()][key]=wasOff;
   if(wasOff&&m.qty>0){
-    m.qty-=m.daily; if(m.qty<0)m.qty=0;
+    m.qty-=1; if(m.qty<0)m.qty=0;
     if(m.qty<=m.warnAt&&settings.stock){
       const st=stockSt(m);
       sendNotif(st==='crit'?'🚨 مخزون حرج':'⚠️ مخزون منخفض',m.name+' — متبقي '+m.qty+' حبة فقط');
       toast((st==='crit'?'🚨':'⚠️')+' '+m.name+' متبقي '+m.qty,'a');
     } else {
-      toast('✓ تم تناول '+m.name,'g');
+      toast('✓ تم تناول '+m.name+(isMulti?' (ج'+(slotIdx+1)+')'):'','g');
     }
   } else if(!wasOff){
-    m.qty+=m.daily;
+    m.qty+=1;
     toast('إلغاء: '+m.name);
   }
-  saveUser();
-  renderToday();
-  renderSchedList();
+  saveUser(); renderToday(); renderSchedList();
 }
+// keep old toggleMed for backward compat with existing data
+function toggleMed(id){ toggleSlot(id,0,false); }
 
 function renderStockAlerts(){
   const el=document.getElementById('stock-alerts');
@@ -863,23 +962,30 @@ function schedAll(){
   stopTimers();
   if(!('Notification' in window)||Notification.permission!=='granted') return;
   const now=new Date(), offset=settings.offset;
+  const todayDow=now.getDay();
   meds.forEach(m=>{
-    const[h,min]=m.time.split(':').map(Number);
-    if(settings.before){
-      const ft=new Date(now.getFullYear(),now.getMonth(),now.getDate(),h,min-offset,0);
-      const ms=ft-now;
-      if(ms>0&&ms<86400000){notifTimers.push(setTimeout(()=>{const rec=history[tdyk()]||{};if(!rec[m.id])sendNotif('⏰ موعد قريب',m.name+' بعد '+offset+' دقائق — '+m.dose);},ms));}
-    }
-    if(settings.ontime){
-      const ft=new Date(now.getFullYear(),now.getMonth(),now.getDate(),h,min,0);
-      const ms=ft-now;
-      if(ms>0&&ms<86400000){notifTimers.push(setTimeout(()=>{const rec=history[tdyk()]||{};if(!rec[m.id])sendNotif('💊 حان موعد الدواء',m.name+' · '+m.dose);},ms));}
-    }
-    if(settings.missed){
-      const ft=new Date(now.getFullYear(),now.getMonth(),now.getDate(),h,min+30,0);
-      const ms=ft-now;
-      if(ms>0&&ms<86400000){notifTimers.push(setTimeout(()=>{const rec=history[tdyk()]||{};if(!rec[m.id])sendNotif('🚨 دواء فائت!',m.name+' — لم يُتناول منذ 30 دقيقة');},ms));}
-    }
+    const freq=m.freq||'daily';
+    if(freq==='weekly'&&m.days&&!m.days.map(Number).includes(todayDow)) return;
+    const slots=m.slots&&m.slots.length>0?m.slots:[{time:m.time,period:m.period}];
+    slots.forEach((sl,si)=>{
+      const[h,min]=sl.time.split(':').map(Number);
+      const slotKey=slots.length>1?(m.id+'_'+si):m.id;
+      if(settings.before){
+        const ft=new Date(now.getFullYear(),now.getMonth(),now.getDate(),h,min-offset,0);
+        const ms=ft-now;
+        if(ms>0&&ms<86400000){notifTimers.push(setTimeout(()=>{const rec=history[tdyk()]||{};if(!rec[slotKey])sendNotif('⏰ موعد قريب',m.name+' بعد '+offset+' دقائق — '+m.dose);},ms));}
+      }
+      if(settings.ontime){
+        const ft=new Date(now.getFullYear(),now.getMonth(),now.getDate(),h,min,0);
+        const ms=ft-now;
+        if(ms>0&&ms<86400000){notifTimers.push(setTimeout(()=>{const rec=history[tdyk()]||{};if(!rec[slotKey])sendNotif('💊 حان موعد الدواء',m.name+(slots.length>1?' (ج'+(si+1)+')':'')+' · '+m.dose);},ms));}
+      }
+      if(settings.missed){
+        const ft=new Date(now.getFullYear(),now.getMonth(),now.getDate(),h,min+30,0);
+        const ms=ft-now;
+        if(ms>0&&ms<86400000){notifTimers.push(setTimeout(()=>{const rec=history[tdyk()]||{};if(!rec[slotKey])sendNotif('🚨 دواء فائت!',m.name+(slots.length>1?' (ج'+(si+1)+')':'')+' — لم يُتناول منذ 30 دقيقة');},ms));}
+      }
+    });
   });
   renderSchedList();
 }
@@ -920,19 +1026,104 @@ function renderSchedList(){
 }
 
 // ═══════════════════════════════════
+// ADD FORM — SCHEDULING STATE
+// ═══════════════════════════════════
+let fFreq='daily', fSelectedDays=new Set(), fDailyCount=1;
+const DAY_NAMES=['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+const DAY_SHORT=['أحد','إثنين','ثلاثاء','أربعاء','خميس','جمعة','سبت'];
+
+function setFreq(f){
+  fFreq=f;
+  ['daily','weekly','once'].forEach(t=>{
+    document.getElementById('ftab-'+t).classList.toggle('active',t===f);
+  });
+  document.getElementById('f-days-section').style.display=(f==='weekly')?'block':'none';
+}
+
+function toggleDay(btn){
+  const d=btn.dataset.day;
+  if(fSelectedDays.has(d)){fSelectedDays.delete(d);btn.classList.remove('sel');}
+  else{fSelectedDays.add(d);btn.classList.add('sel');}
+}
+
+function changeDaily(delta){
+  fDailyCount=Math.max(1,fDailyCount+delta);
+  document.getElementById('f-daily-display').textContent=fDailyCount;
+  document.getElementById('f-daily').value=fDailyCount;
+  if(fDailyCount>1){
+    document.getElementById('f-single-slot').style.display='none';
+    document.getElementById('f-multi-slots').style.display='block';
+    renderMultiSlots();
+  } else {
+    document.getElementById('f-single-slot').style.display='block';
+    document.getElementById('f-multi-slots').style.display='none';
+  }
+}
+
+const SLOT_DEFAULTS=['08:00','13:00','18:00','22:00'];
+function renderMultiSlots(){
+  const container=document.getElementById('f-multi-slots');
+  const labels=['الأولى','الثانية','الثالثة','الرابعة','الخامسة','السادسة'];
+  let html='<div style="font-size:12px;color:var(--text2);margin-bottom:8px;font-weight:500">مواعيد الجرعات</div>';
+  for(let i=0;i<fDailyCount;i++){
+    const prev=container.querySelector('#ms-time-'+i);
+    const prevT=prev?prev.value:SLOT_DEFAULTS[i]||'08:00';
+    const prevP=container.querySelector('#ms-period-'+i);
+    const prevPV=prevP?prevP.value:['morning','noon','evening','night'][i]||'morning';
+    html+=`<div class="dose-slot">
+      <div class="dose-slot-title">الجرعة ${labels[i]||i+1}</div>
+      <div class="form-row2">
+        <div class="form-field" style="margin-bottom:0"><label class="form-label">الوقت</label><input class="form-input" id="ms-time-${i}" type="time" value="${prevT}"></div>
+        <div class="form-field" style="margin-bottom:0"><label class="form-label">الفترة</label>
+          <select class="form-select" id="ms-period-${i}">
+            <option value="morning" ${prevPV==='morning'?'selected':''}>☀️ صباح</option>
+            <option value="noon" ${prevPV==='noon'?'selected':''}>🌤️ ظهر</option>
+            <option value="evening" ${prevPV==='evening'?'selected':''}>🌆 مساء</option>
+            <option value="night" ${prevPV==='night'?'selected':''}>🌙 ليل</option>
+          </select>
+        </div>
+      </div>
+    </div>`;
+  }
+  container.innerHTML=html;
+}
+
+// ═══════════════════════════════════
 // ADD / MANAGE
 // ═══════════════════════════════════
 function addMed(){
   const n=document.getElementById('f-name').value.trim();
   const dose=document.getElementById('f-dose').value.trim();
-  const time=document.getElementById('f-time').value;
-  const period=document.getElementById('f-period').value;
   const qty=parseInt(document.getElementById('f-qty').value)||0;
-  const daily=parseInt(document.getElementById('f-daily').value)||1;
+  const daily=fDailyCount;
   const warn=parseInt(document.getElementById('f-warn').value)||10;
   if(!n){toast('أدخل اسم الدواء','a');return;}
-  meds.push({id:nextId++,name:n,dose:dose||'جرعة',time,period,qty,daily,warnAt:warn});
+  if(fFreq==='weekly'&&fSelectedDays.size===0){toast('اختر يوماً على الأقل','a');return;}
+
+  let slots=[];
+  if(daily>1){
+    for(let i=0;i<daily;i++){
+      slots.push({time:document.getElementById('ms-time-'+i)?.value||SLOT_DEFAULTS[i]||'08:00',period:document.getElementById('ms-period-'+i)?.value||'morning'});
+    }
+  } else {
+    slots.push({time:document.getElementById('f-time').value,period:document.getElementById('f-period').value});
+  }
+
+  // primary time/period for backward compat
+  const time=slots[0].time, period=slots[0].period;
+  const days=fFreq==='weekly'?Array.from(fSelectedDays).map(Number):[];
+
+  meds.push({id:nextId++,name:n,dose:dose||'جرعة',time,period,qty,daily,warnAt:warn,freq:fFreq,days,slots});
   ['f-name','f-dose','f-qty'].forEach(id=>document.getElementById(id).value='');
+  // reset form
+  fFreq='daily'; fSelectedDays=new Set(); fDailyCount=1;
+  document.getElementById('f-daily-display').textContent='1';
+  document.getElementById('f-daily').value='1';
+  document.getElementById('f-single-slot').style.display='block';
+  document.getElementById('f-multi-slots').style.display='none';
+  document.getElementById('f-days-section').style.display='none';
+  ['ftab-daily','ftab-weekly','ftab-once'].forEach((id,i)=>document.getElementById(id).classList.toggle('active',i===0));
+  document.querySelectorAll('.day-chip').forEach(b=>b.classList.remove('sel'));
   toast('✓ تمت إضافة '+n,'g');
   saveUser(); renderManage(); renderToday(); schedAll();
 }
@@ -942,14 +1133,26 @@ function deleteMed(id){
   saveUser(); renderManage(); renderToday(); schedAll();
   toast('تم الحذف');
 }
+function freqLabel(m){
+  if(!m.freq||m.freq==='daily') return 'يومي';
+  if(m.freq==='once') return 'مرة واحدة';
+  if(m.freq==='weekly'&&m.days&&m.days.length){
+    return m.days.map(d=>DAY_SHORT[d]).join('، ');
+  }
+  return 'أيام محددة';
+}
 function renderManage(){
   const el=document.getElementById('manage-list');
   if(!meds.length){el.innerHTML='<div class="empty" style="padding:16px">لا توجد أدوية مسجلة</div>';return;}
-  el.innerHTML=meds.map(m=>`<div class="manage-row">
+  el.innerHTML=meds.map(m=>{
+    const slots=m.slots||[{time:m.time,period:m.period}];
+    const timeStr=slots.length>1?slots.map(s=>s.time).join(' · '):m.time;
+    const schLbl=freqLabel(m);
+    return`<div class="manage-row">
     <div class="med-ic" style="background:${PBG[m.period]};width:36px;height:36px;border-radius:9px;flex-shrink:0">${ICONS[m.period]}</div>
-    <div class="med-body"><div class="med-title">${m.name}</div><div class="med-sub">${m.time} · ${m.dose} · مخزون: ${m.qty}</div></div>
+    <div class="med-body"><div class="med-title">${m.name}</div><div class="med-sub">${timeStr} · ${m.dose} · ${schLbl} · مخزون: ${m.qty}</div></div>
     <button class="del-btn" onclick="deleteMed(${m.id})">✕</button>
-  </div>`).join('');
+  </div>`;}).join('');
 }
 
 // ═══════════════════════════════════
@@ -980,6 +1183,10 @@ if(!load()){
 }
 </script>
 
-
+<script>
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+</script>
 </body>
 </html>
