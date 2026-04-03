@@ -799,7 +799,7 @@ function toggleSlot(id, slotIdx, isMultiStr){
       sendNotif(st==='crit'?'🚨 مخزون حرج':'⚠️ مخزون منخفض',m.name+' — متبقي '+m.qty+' حبة فقط');
       toast((st==='crit'?'🚨':'⚠️')+' '+m.name+' متبقي '+m.qty,'a');
     } else {
-      toast('✓ تم تناول '+m.name+(isMulti?' (ج'+(slotIdx+1)+')'):'','g');
+      toast('✓ تم تناول '+m.name+(isMulti?' (ج'+(slotIdx+1)+')':''),'g');
     }
   } else if(!wasOff){
     m.qty+=1;
