@@ -2,7 +2,7 @@
   "name": "دوائي — تذكير الدواء",
   "short_name": "دوائي",
   "description": "تطبيق تذكير الدواء مع إدارة المخزون والتقارير الشهرية",
-  "start_url": "/index.html",
+ "start_url": "/dawai/index.html",
   "display": "standalone",
   "background_color": "#0d1117",
   "theme_color": "#0d1117",
