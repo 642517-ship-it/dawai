@@ -695,7 +695,6 @@ function doLogout(){
 
 function enterApp(){
   document.getElementById('login-screen').style.display='none';
-  // header
   const ini=session.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
   document.getElementById('user-av').textContent=ini;
   document.getElementById('gr-name').textContent='مرحباً، '+session.name.split(' ')[0];
@@ -705,6 +704,38 @@ function enterApp(){
   renderToday();
   buildNavs();
   checkInstall();
+  checkMissedOnOpen();
+}
+function checkMissedOnOpen(){
+  const now=nowM();
+  const rec=history[tdyk()]||{};
+  const missed=meds.filter(m=>{
+    if(!isMedScheduledToday(m)) return false;
+    const slots=m.slots&&m.slots.length>0?m.slots:[{time:m.time}];
+    return slots.some((sl,si)=>{
+      const key=slots.length>1?(m.id+'_'+si):m.id;
+      return t2m(sl.time)<now && !rec[key];
+    });
+  });
+  if(!missed.length) return;
+  setTimeout(()=>{
+    const names=missed.map(m=>m.name).join('، ');
+    showMissedAlert(names);
+  },800);
+}
+function showMissedAlert(names){
+  const existing=document.getElementById('missed-alert');
+  if(existing) existing.remove();
+  const div=document.createElement('div');
+  div.id='missed-alert';
+  div.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:300;display:flex;align-items:center;justify-content:center;padding:24px';
+  div.innerHTML=`<div style="background:var(--bg2);border:1px solid var(--red-border);border-radius:var(--radius);padding:24px;max-width:340px;width:100%;text-align:center">
+    <div style="font-size:36px;margin-bottom:12px">🚨</div>
+    <div style="font-size:16px;font-weight:600;color:var(--red-light);margin-bottom:8px">أدوية فائتة!</div>
+    <div style="font-size:14px;color:var(--text2);margin-bottom:20px;line-height:1.6">لم تتناول بعد:<br><strong style="color:var(--text)">${names}</strong></div>
+    <button onclick="document.getElementById('missed-alert').remove()" style="width:100%;height:44px;background:var(--red);color:white;border:none;border-radius:var(--radius-sm);font-size:14px;font-family:inherit;cursor:pointer">حسناً، سأتناولها الآن</button>
+  </div>`;
+  document.body.appendChild(div);
 }
 
 function seedDemo(){
@@ -884,6 +915,13 @@ function editWarn(id){
 // ═══════════════════════════════════
 function chM(d){vM+=d;if(vM>11){vM=0;vY++;}if(vM<0){vM=11;vY--;}renderReport();}
 function isMedScheduledOnDate(m, date){
+  if(m.startDate){
+    const start=new Date(m.startDate);
+    start.setHours(0,0,0,0);
+    const d=new Date(date);
+    d.setHours(0,0,0,0);
+    if(d<start) return false;
+  }
   const freq=m.freq||'daily';
   if(freq==='daily') return true;
   if(freq==='once') return true;
@@ -1132,7 +1170,7 @@ function addMed(){
   const time=slots[0].time, period=slots[0].period;
   const days=fFreq==='weekly'?Array.from(fSelectedDays).map(Number):[];
 
-  meds.push({id:nextId++,name:n,dose:dose||'جرعة',time,period,qty,daily,warnAt:warn,freq:fFreq,days,slots});
+  meds.push({id:nextId++,name:n,dose:dose||'جرعة',time,period,qty,daily,warnAt:warn,freq:fFreq,days,slots,startDate:dk(TODAY)});
   ['f-name','f-dose','f-qty'].forEach(id=>document.getElementById(id).value='');
   // reset form
   fFreq='daily'; fSelectedDays=new Set(); fDailyCount=1;
