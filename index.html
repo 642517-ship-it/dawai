@@ -883,6 +883,13 @@ function editWarn(id){
 // REPORT
 // ═══════════════════════════════════
 function chM(d){vM+=d;if(vM>11){vM=0;vY++;}if(vM<0){vM=11;vY--;}renderReport();}
+function isMedScheduledOnDate(m, date){
+  const freq=m.freq||'daily';
+  if(freq==='daily') return true;
+  if(freq==='once') return true;
+  if(freq==='weekly') return m.days&&m.days.map(Number).includes(date.getDay());
+  return true;
+}
 function renderReport(){
   document.getElementById('cal-title').textContent=MONTHS[vM]+' '+vY;
   const dim=new Date(vY,vM+1,0).getDate(),fd=new Date(vY,vM,1).getDay();
@@ -891,16 +898,21 @@ function renderReport(){
   for(let i=0;i<fd;i++) cal+='<div></div>';
   for(let d=1;d<=dim;d++){
     const k=vY+'-'+String(vM+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
-    const isFut=new Date(vY,vM,d)>TODAY;
+    const dateObj=new Date(vY,vM,d);
+    const isFut=dateObj>TODAY;
     const isTod=d===TODAY.getDate()&&vM===TODAY.getMonth()&&vY===TODAY.getFullYear();
     let cls='future';
     if(!isFut&&meds.length){
       const rec=history[k]||{};
-      const done=meds.filter(m=>rec[m.id]).length;
-      if(done===meds.length){cls='perfect';perf++;}
-      else if(done===0){cls='missed';miss++;}
-      else{cls='partial';part++;}
-      if(cls!=='perfect'){const mg=meds.filter(m=>!rec[m.id]).map(m=>m.name);if(mg.length)issues.push({d,m:vM+1,type:cls,miss:mg});}
+      const scheduledMeds=meds.filter(m=>isMedScheduledOnDate(m,dateObj));
+      if(scheduledMeds.length===0){cls='future';}
+      else{
+        const done=scheduledMeds.filter(m=>rec[m.id]).length;
+        if(done===scheduledMeds.length){cls='perfect';perf++;}
+        else if(done===0){cls='missed';miss++;}
+        else{cls='partial';part++;}
+        if(cls!=='perfect'){const mg=scheduledMeds.filter(m=>!rec[m.id]).map(m=>m.name);if(mg.length)issues.push({d,m:vM+1,type:cls,miss:mg});}
+      }
     }
     cal+=`<div class="cal-d ${cls} ${isTod?'today-ring':''}">${d}</div>`;
   }
@@ -910,7 +922,14 @@ function renderReport(){
   document.getElementById('r-m').textContent=miss;
   document.getElementById('adh-list').innerHTML=meds.length?meds.map(m=>{
     let tk=0,tot=0;
-    for(let d=1;d<=dim;d++){const k=vY+'-'+String(vM+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');if(new Date(vY,vM,d)<=TODAY&&history[k]){tot++;if(history[k][m.id])tk++;}}
+    for(let d=1;d<=dim;d++){
+      const dateObj=new Date(vY,vM,d);
+      if(dateObj>TODAY) continue;
+      if(!isMedScheduledOnDate(m,dateObj)) continue;
+      tot++;
+      const k=vY+'-'+String(vM+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+      if(history[k]&&history[k][m.id]) tk++;
+    }
     const pct=tot?Math.round(tk/tot*100):0;
     const c=pct>=80?'var(--green)':pct>=50?'var(--amber)':'var(--red)';
     return`<div class="adh-row"><div class="adh-name">${m.name}</div><div class="adh-track"><div class="adh-fill" style="width:${pct}%;background:${c}"></div></div><div class="adh-pct">${pct}%</div></div>`;
