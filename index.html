@@ -800,7 +800,7 @@ function renderToday(){
     const isDone=rec[doneKey]||false;
     const st=stockSt(m);
     const stockHint=st!=='ok'?` · <span style="color:${st==='crit'?'var(--red-light)':'var(--amber-light)'};font-size:11px">متبقي ${m.qty}</span>`:'';
-    const isLate=!isDone&&t2m(time)<nowM();
+    const isLate=false; // التسجيل في أي وقت من اليوم يُعتبر صحيحاً
     const slotLabel=m.slots&&m.slots.length>1?` <span style="font-size:10px;color:var(--green-light);background:var(--green-bg);padding:1px 6px;border-radius:4px">ج${slotIdx+1}</span>`:'';
     const schHint=m.freq==='weekly'&&m.days?` · ${m.days.map(d=>DAY_SHORT[d]).join('،')}`:'';
     return`<div class="med-row">
