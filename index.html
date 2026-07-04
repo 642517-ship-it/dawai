@@ -886,6 +886,7 @@ function renderStock(){
       ${st!=='ok'?`<div class="stock-warn-msg ${st==='crit'||st==='empty'?'c':'w'}">${st==='crit'||st==='empty'?'🚨 المخزون حرج جداً — يرجى إعادة التعبئة فوراً':'⚠️ المخزون منخفض — لا تنسَ إعادة التعبئة'}</div>`:''}
       <div class="stock-actions">
         <button class="btn-outline" onclick="editWarn(${m.id})">تعديل الحد</button>
+        <button class="btn-outline" onclick="editQty(${m.id})">تعديل الكمية</button>
         <button class="btn-outline btn-green" onclick="openRefill(${m.id})">+ إعادة تعبئة</button>
       </div>
       <div class="refill-row" id="rf-${m.id}">
@@ -904,6 +905,11 @@ function doRefill(id){
   toast('✓ تمت إضافة '+val+' حبة لـ '+m.name,'g');
   saveUser(); renderStock(); renderToday();
 }
+function editQty(id){
+  const m=meds.find(x=>x.id===id);
+  const v=prompt('الكمية الحالية لـ '+m.name+' ('+m.qty+' حبة):\nأدخل الكمية الجديدة:', m.qty);
+  if(v&&!isNaN(v)&&parseInt(v)>=0){m.qty=parseInt(v);toast('✓ تم تعديل الكمية','g');saveUser();renderStock();renderToday();}
+}
 function editWarn(id){
   const m=meds.find(x=>x.id===id);
   const v=prompt('حد التحذير لـ '+m.name+' (الحالي: '+m.warnAt+'):', m.warnAt);
@@ -913,6 +919,17 @@ function editWarn(id){
 // ═══════════════════════════════════
 // REPORT
 // ═══════════════════════════════════
+function chM(d){
+  vM+=d;
+  if(vM>11){vM=0;vY++;}
+  if(vM<0){vM=11;vY--;}
+  // منع التنقل للمستقبل
+  const now=new Date();
+  if(vY>now.getFullYear()||(vY===now.getFullYear()&&vM>now.getMonth())){
+    vM=now.getMonth(); vY=now.getFullYear();
+  }
+  renderReport();
+}
 function openDayEdit(k, d, m, y){
   const dateObj=new Date(y,m,d);
   const scheduledMeds=meds.filter(med=>isMedScheduledOnDate(med,dateObj));
