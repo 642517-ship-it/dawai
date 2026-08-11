@@ -1,4 +1,4 @@
-const CACHE = 'dawai-v13';
+const CACHE = 'dawai-v14';
 const BASE = '/dawai';
 const ASSETS = [
   BASE + '/',

@@ -449,6 +449,13 @@ body { font-family: 'IBM Plex Sans Arabic', system-ui, sans-serif; color: var(--
           <div class="card-label">جدول اليوم</div>
           <div id="sched-list"></div>
         </div>
+        <div class="card">
+          <div class="card-label">النسخ الاحتياطي</div>
+          <div style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:12px">صدّر نسخة من بياناتك واحفظها في مكان آمن (Google Drive أو واتساب)، واستوردها متى احتجت لاستعادة أدويتك وسجلّك.</div>
+          <button class="test-notif-btn" onclick="exportBackup()">⬇️ تصدير نسخة احتياطية</button>
+          <button class="test-notif-btn" onclick="triggerImport()" style="margin-top:8px">⬆️ استيراد نسخة</button>
+          <input type="file" id="backup-file" accept="application/json,.json" style="display:none" onchange="importBackup(event)">
+        </div>
       </div>
     </div>
     <nav class="nav" id="nav4"></nav>
@@ -590,6 +597,64 @@ function saveUser(){
   users[session.name.toLowerCase()].meds=meds;
   users[session.name.toLowerCase()].history=history;
   save();
+}
+
+// ═══════════════════════════════════
+// BACKUP (تصدير / استيراد)
+// ═══════════════════════════════════
+function downloadBlob(blob,fname){
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=fname; document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  toast('✓ تم حفظ النسخة','g');
+}
+function exportBackup(){
+  try{ if(session) saveUser(); }catch(e){}
+  const data={
+    app:'dawai', type:'backup', version:1,
+    exportedAt:new Date().toISOString(),
+    users: JSON.parse(localStorage.getItem('dawai_users')||'{}'),
+    settings: JSON.parse(localStorage.getItem('dawai_settings')||'null')
+  };
+  const json=JSON.stringify(data,null,2);
+  const fname='dawai-backup-'+dk(new Date())+'.json';
+  const blob=new Blob([json],{type:'application/json'});
+  try{
+    const file=new File([blob],fname,{type:'application/json'});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      navigator.share({files:[file],title:'نسخة دوائي الاحتياطية',text:'نسخة احتياطية من تطبيق دوائي'})
+        .then(()=>toast('✓ تم تصدير النسخة','g'))
+        .catch(err=>{ if(!err || err.name!=='AbortError') downloadBlob(blob,fname); });
+      return;
+    }
+  }catch(e){}
+  downloadBlob(blob,fname);
+}
+function triggerImport(){ document.getElementById('backup-file').click(); }
+function importBackup(ev){
+  const file=ev.target.files && ev.target.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=function(){
+    try{
+      const data=JSON.parse(reader.result);
+      if(!data || data.app!=='dawai' || typeof data.users!=='object' || !data.users){
+        toast('ملف غير صالح','r'); ev.target.value=''; return;
+      }
+      if(!confirm('سيتم استبدال جميع البيانات الحالية بمحتوى النسخة الاحتياطية. هل تريد المتابعة؟')){
+        ev.target.value=''; return;
+      }
+      localStorage.setItem('dawai_users',JSON.stringify(data.users));
+      if(data.settings) localStorage.setItem('dawai_settings',JSON.stringify(data.settings));
+      localStorage.removeItem('dawai_session');
+      toast('✓ تم الاستيراد — يُعاد التحميل','g');
+      setTimeout(()=>location.reload(),1000);
+    }catch(e){ toast('تعذّر قراءة الملف','r'); ev.target.value=''; }
+  };
+  reader.onerror=function(){ toast('تعذّر قراءة الملف','r'); ev.target.value=''; };
+  reader.readAsText(file);
 }
 
 // ═══════════════════════════════════
