@@ -532,6 +532,7 @@ body { font-family: 'IBM Plex Sans Arabic', system-ui, sans-serif; color: var(--
           <!-- جرعات متعددة: لكل جرعة وقت وفترة -->
           <div id="f-multi-slots" style="display:none"></div>
 
+          <div class="form-field"><label class="form-label">تاريخ البدء</label><input class="form-input" id="f-startdate" type="date"></div>
           <div class="form-field"><label class="form-label">تحذير عند الوصول إلى</label><input class="form-input" id="f-warn" type="number" value="10" min="1" placeholder="10 حبات"></div>
           <button class="add-submit" onclick="addMed()">+ إضافة الدواء</button>
         </div>
@@ -1297,8 +1298,10 @@ function addMed(){
   const time=slots[0].time, period=slots[0].period;
   const days=fFreq==='weekly'?Array.from(fSelectedDays).map(Number):[];
 
-  meds.push({id:nextId++,name:n,dose:dose||'جرعة',time,period,qty,daily,warnAt:warn,freq:fFreq,days,slots,startDate:dk(TODAY)});
+  const sd=document.getElementById('f-startdate').value||dk(TODAY);
+  meds.push({id:nextId++,name:n,dose:dose||'جرعة',time,period,qty,daily,warnAt:warn,freq:fFreq,days,slots,startDate:sd});
   ['f-name','f-dose','f-qty'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-startdate').value=dk(TODAY);
   // reset form
   fFreq='daily'; fSelectedDays=new Set(); fDailyCount=1;
   document.getElementById('f-daily-display').textContent='1';
@@ -1326,6 +1329,7 @@ function freqLabel(m){
   return 'أيام محددة';
 }
 function renderManage(){
+  {const _sd=document.getElementById('f-startdate'); if(_sd&&!_sd.value) _sd.value=dk(TODAY);}
   const el=document.getElementById('manage-list');
   if(!meds.length){el.innerHTML='<div class="empty" style="padding:16px">لا توجد أدوية مسجلة</div>';return;}
   el.innerHTML=meds.map(m=>{
