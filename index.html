@@ -281,8 +281,28 @@ body { font-family: 'IBM Plex Sans Arabic', system-ui, sans-serif; color: var(--
 </head>
 <body>
 
+<!-- FIREBASE -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
+  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
+  import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+  const firebaseConfig = {
+    apiKey: "AIzaSyDUTgwasraPrSCBj_nvWHfszf0VluS35co",
+    authDomain: "dawai-50755.firebaseapp.com",
+    projectId: "dawai-50755",
+    storageBucket: "dawai-50755.firebasestorage.app",
+    messagingSenderId: "966139269899",
+    appId: "1:966139269899:web:52cdc18bfb0ba8d83d480e"
+  };
+  try{
+    const app = initializeApp(firebaseConfig);
+    window.FB = { auth:getAuth(app), db:getFirestore(app), createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, doc, getDoc, setDoc };
+  }catch(e){ window.FB_ERROR = e; }
+  window.dispatchEvent(new Event('fb-ready'));
+</script>
+
 <!-- LOGIN -->
-<div id="login-screen">
+<div id="login-screen" style="display:none">
   <div class="login-box">
     <div class="login-logo">
       <span class="pill">💊</span>
@@ -291,17 +311,18 @@ body { font-family: 'IBM Plex Sans Arabic', system-ui, sans-serif; color: var(--
     </div>
     <div class="login-err" id="lerr"></div>
     <div id="lform">
-      <div class="login-field"><label>الاسم</label><input class="login-input" id="l-name" type="text" placeholder="أدخل اسمك" autocomplete="off"></div>
-      <div class="login-field"><label>مفتاح الدخول (4 أرقام)</label><input class="login-input pin-input" id="l-pin" type="password" inputmode="numeric" maxlength="4" placeholder="••••"></div>
-      <button class="login-btn-main" onclick="doLogin()">دخول</button>
+      <div class="login-field"><label>البريد الإلكتروني</label><input class="login-input" id="l-email" type="email" inputmode="email" autocomplete="username" placeholder="you@example.com"></div>
+      <div class="login-field"><label>كلمة السر</label><input class="login-input" id="l-pass" type="password" autocomplete="current-password" placeholder="••••••"></div>
+      <button class="login-btn-main" onclick="doLogin(event)">دخول</button>
       <div class="login-switch"><span>لا يوجد حساب؟ </span><button onclick="goSetup()">إنشاء حساب جديد</button></div>
     </div>
     <div id="sform" style="display:none">
-      <div class="setup-hint">اختر اسماً ومفتاح دخول من 4 أرقام. احفظ المفتاح في مكان آمن.</div>
-      <div class="login-field"><label>الاسم الكامل</label><input class="login-input" id="s-name" type="text" placeholder="مثال: أحمد محمد"></div>
-      <div class="login-field"><label>مفتاح الدخول</label><input class="login-input pin-input" id="s-pin" type="password" inputmode="numeric" maxlength="4" placeholder="••••"></div>
-      <div class="login-field"><label>تأكيد المفتاح</label><input class="login-input pin-input" id="s-pin2" type="password" inputmode="numeric" maxlength="4" placeholder="••••"></div>
-      <button class="login-btn-main" onclick="doSetup()">إنشاء الحساب</button>
+      <div class="setup-hint">أنشئ حسابك ببريد وكلمة سر. بياناتك ستُحفظ على السحابة ولن تُفقد عند حذف بيانات المتصفح.</div>
+      <div class="login-field"><label>الاسم</label><input class="login-input" id="s-name" type="text" placeholder="مثال: محمد"></div>
+      <div class="login-field"><label>البريد الإلكتروني</label><input class="login-input" id="s-email" type="email" inputmode="email" autocomplete="username" placeholder="you@example.com"></div>
+      <div class="login-field"><label>كلمة السر (6 أحرف على الأقل)</label><input class="login-input" id="s-pass" type="password" autocomplete="new-password" placeholder="••••••"></div>
+      <div class="login-field"><label>تأكيد كلمة السر</label><input class="login-input" id="s-pass2" type="password" autocomplete="new-password" placeholder="••••••"></div>
+      <button class="login-btn-main" onclick="doSignup(event)">إنشاء الحساب</button>
       <div class="login-switch"><button onclick="goLogin()">العودة لتسجيل الدخول</button></div>
     </div>
   </div>
@@ -450,10 +471,12 @@ body { font-family: 'IBM Plex Sans Arabic', system-ui, sans-serif; color: var(--
           <div id="sched-list"></div>
         </div>
         <div class="card">
-          <div class="card-label">النسخ الاحتياطي</div>
-          <div style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:12px">صدّر نسخة من بياناتك واحفظها في مكان آمن (Google Drive أو واتساب)، واستوردها متى احتجت لاستعادة أدويتك وسجلّك.</div>
-          <button class="test-notif-btn" onclick="exportBackup()">⬇️ تصدير نسخة احتياطية</button>
-          <button class="test-notif-btn" onclick="triggerImport()" style="margin-top:8px">⬆️ استيراد نسخة</button>
+          <div class="card-label">المزامنة والنسخ الاحتياطي</div>
+          <div id="sync-status" style="font-size:12px;color:var(--text2);margin-bottom:10px">…</div>
+          <div style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:12px">بياناتك تُحفظ على السحابة تلقائياً وتعود عند الدخول من أي جهاز. يمكنك أيضاً تصدير نسخة ملف احتياطية إضافية.</div>
+          <button class="test-notif-btn" onclick="exportBackup()">⬇️ تصدير نسخة (ملف)</button>
+          <button class="test-notif-btn" onclick="triggerImport()" style="margin-top:8px">⬆️ استيراد نسخة (ملف)</button>
+          <button class="test-notif-btn" onclick="importOldLocal()" style="margin-top:8px">↩️ استيراد بيانات محلية قديمة</button>
           <input type="file" id="backup-file" accept="application/json,.json" style="display:none" onchange="importBackup(event)">
         </div>
       </div>
@@ -564,40 +587,60 @@ let users={}, session=null, meds=[], nextId=1, history={};
 let vY=new Date().getFullYear(), vM=new Date().getMonth();
 let notifTimers=[], settings={ontime:true,before:true,missed:true,stock:true,offset:10};
 let deferredInstallPrompt=null;
+let FB=null, saveTimer=null, pendingName='', authStarted=false;
 
 const TODAY=new Date();
 
 // ═══════════════════════════════════
 // STORAGE
 // ═══════════════════════════════════
-function save(){
+function cacheLocal(){
+  try{ if(session) localStorage.setItem('dawai_cache_'+session.uid, JSON.stringify({meds,history,settings,name:session.name})); }catch(e){}
+}
+function loadCache(){
   try{
-    localStorage.setItem('dawai_users',JSON.stringify(users));
-    if(session) localStorage.setItem('dawai_session',session.name);
+    const c=localStorage.getItem('dawai_cache_'+session.uid);
+    if(c){ const d=JSON.parse(c); meds=d.meds||[]; history=d.history||{}; if(d.settings) settings=Object.assign(settings,d.settings); if(d.name) session.name=d.name; nextId=meds.length?Math.max(...meds.map(m=>m.id))+1:1; }
   }catch(e){}
 }
-function load(){
+async function cloudLoad(uid){
   try{
-    const u=localStorage.getItem('dawai_users');
-    if(u) users=JSON.parse(u);
-    const s=localStorage.getItem('dawai_settings');
-    if(s) settings=Object.assign(settings,JSON.parse(s));
-    const sess=localStorage.getItem('dawai_session');
-    if(sess && users[sess.toLowerCase()]){
-      session={name:users[sess.toLowerCase()].name,pin:users[sess.toLowerCase()].pin};
-      meds=users[sess.toLowerCase()].meds||[];
-      history=users[sess.toLowerCase()].history||{};
+    const snap=await FB.getDoc(FB.doc(FB.db,'users',uid));
+    if(snap.exists()){
+      const d=snap.data();
+      meds=d.meds||[]; history=d.history||{};
+      if(d.settings) settings=Object.assign(settings,d.settings);
+      if(d.name) session.name=d.name;
       nextId=meds.length?Math.max(...meds.map(m=>m.id))+1:1;
-      return true;
+      cacheLocal(); setSync(true);
+    } else {
+      meds=[]; history={}; nextId=1;
+      if(pendingName) session.name=pendingName;
+      await cloudSave();
     }
-  }catch(e){}
-  return false;
+  }catch(e){
+    loadCache(); setSync(false);
+  }
+  pendingName='';
 }
+async function cloudSave(){
+  if(!session || !FB) return;
+  try{
+    await FB.setDoc(FB.doc(FB.db,'users',session.uid),{meds,history,settings,name:session.name,updatedAt:Date.now()});
+    setSync(true);
+  }catch(e){ setSync(false); }
+}
+function scheduleCloudSave(){ clearTimeout(saveTimer); saveTimer=setTimeout(cloudSave,800); }
 function saveUser(){
   if(!session) return;
-  users[session.name.toLowerCase()].meds=meds;
-  users[session.name.toLowerCase()].history=history;
-  save();
+  cacheLocal();
+  scheduleCloudSave();
+}
+function setSync(ok){
+  const el=document.getElementById('sync-status');
+  if(!el) return;
+  el.textContent = ok ? 'متزامن مع السحابة ✓' : 'بانتظار الاتصال…';
+  el.style.color = ok ? 'var(--green-light)' : '#d29922';
 }
 
 // ═══════════════════════════════════
@@ -612,13 +655,8 @@ function downloadBlob(blob,fname){
   toast('✓ تم حفظ النسخة','g');
 }
 function exportBackup(){
-  try{ if(session) saveUser(); }catch(e){}
-  const data={
-    app:'dawai', type:'backup', version:1,
-    exportedAt:new Date().toISOString(),
-    users: JSON.parse(localStorage.getItem('dawai_users')||'{}'),
-    settings: JSON.parse(localStorage.getItem('dawai_settings')||'null')
-  };
+  const data={ app:'dawai', type:'backup', version:2, exportedAt:new Date().toISOString(),
+    data:{ name:session?session.name:'', meds, history, settings } };
   const json=JSON.stringify(data,null,2);
   const fname='dawai-backup-'+dk(new Date())+'.json';
   const blob=new Blob([json],{type:'application/json'});
@@ -633,6 +671,13 @@ function exportBackup(){
   }catch(e){}
   downloadBlob(blob,fname);
 }
+function applyImported(obj){
+  meds=obj.meds||[]; history=obj.history||{};
+  if(obj.settings) settings=Object.assign(settings,obj.settings);
+  nextId=meds.length?Math.max(...meds.map(m=>m.id))+1:1;
+  saveUser();
+  renderToday(); renderManage(); if(typeof renderReport==='function') renderReport(); schedAll();
+}
 function triggerImport(){ document.getElementById('backup-file').click(); }
 function importBackup(ev){
   const file=ev.target.files && ev.target.files[0];
@@ -640,22 +685,32 @@ function importBackup(ev){
   const reader=new FileReader();
   reader.onload=function(){
     try{
-      const data=JSON.parse(reader.result);
-      if(!data || data.app!=='dawai' || typeof data.users!=='object' || !data.users){
-        toast('ملف غير صالح','r'); ev.target.value=''; return;
+      const raw=JSON.parse(reader.result);
+      let payload=null;
+      if(raw && raw.data && (raw.data.meds||raw.data.history)) payload=raw.data;
+      else if(raw && raw.users){
+        const u=Object.values(raw.users).find(x=>x&&x.meds&&x.meds.length)||Object.values(raw.users)[0];
+        if(u) payload={meds:u.meds||[],history:u.history||{}};
       }
-      if(!confirm('سيتم استبدال جميع البيانات الحالية بمحتوى النسخة الاحتياطية. هل تريد المتابعة؟')){
-        ev.target.value=''; return;
-      }
-      localStorage.setItem('dawai_users',JSON.stringify(data.users));
-      if(data.settings) localStorage.setItem('dawai_settings',JSON.stringify(data.settings));
-      localStorage.removeItem('dawai_session');
-      toast('✓ تم الاستيراد — يُعاد التحميل','g');
-      setTimeout(()=>location.reload(),1000);
-    }catch(e){ toast('تعذّر قراءة الملف','r'); ev.target.value=''; }
+      if(!payload){ toast('ملف غير صالح','r'); ev.target.value=''; return; }
+      if(!confirm('سيتم استبدال بياناتك الحالية بمحتوى النسخة الاحتياطية. متابعة؟')){ ev.target.value=''; return; }
+      applyImported(payload);
+      toast('✓ تم الاستيراد','g');
+    }catch(e){ toast('تعذّر قراءة الملف','r'); }
+    finally{ ev.target.value=''; }
   };
   reader.onerror=function(){ toast('تعذّر قراءة الملف','r'); ev.target.value=''; };
   reader.readAsText(file);
+}
+function importOldLocal(){
+  let old=null;
+  try{ old=JSON.parse(localStorage.getItem('dawai_users')||'null'); }catch(e){}
+  if(!old || !Object.keys(old).length){ toast('لا توجد بيانات محلية قديمة','a'); return; }
+  const u=Object.values(old).find(x=>x&&x.meds&&x.meds.length)||Object.values(old)[0];
+  if(!u || !u.meds || !u.meds.length){ toast('لا توجد أدوية في البيانات القديمة','a'); return; }
+  if(!confirm('استيراد '+u.meds.length+' دواء من البيانات المحلية القديمة إلى حسابك؟ سيستبدل بياناتك الحالية.')) return;
+  applyImported({meds:u.meds||[],history:u.history||{}});
+  toast('✓ تم استيراد بياناتك القديمة','g');
 }
 
 // ═══════════════════════════════════
@@ -720,43 +775,70 @@ function clearErr(){document.getElementById('lerr').classList.remove('show');}
 function goSetup(){document.getElementById('lform').style.display='none';document.getElementById('sform').style.display='block';document.getElementById('login-sub').textContent='إنشاء حساب جديد';clearErr();}
 function goLogin(){document.getElementById('sform').style.display='none';document.getElementById('lform').style.display='block';document.getElementById('login-sub').textContent='سجّل دخولك للمتابعة';clearErr();}
 
-function doSetup(){
+function authErr(e){
+  const c=(e&&e.code)||'';
+  if(c.includes('invalid-email')) return 'البريد الإلكتروني غير صالح';
+  if(c.includes('email-already-in-use')) return 'هذا البريد مسجّل مسبقاً — سجّل الدخول';
+  if(c.includes('weak-password')) return 'كلمة السر ضعيفة (6 أحرف على الأقل)';
+  if(c.includes('missing-password')) return 'أدخل كلمة السر';
+  if(c.includes('invalid-credential')||c.includes('wrong-password')||c.includes('user-not-found')) return 'البريد أو كلمة السر غير صحيحة';
+  if(c.includes('network')) return 'لا يوجد اتصال بالإنترنت';
+  if(c.includes('too-many-requests')) return 'محاولات كثيرة — انتظر قليلاً';
+  return 'حدث خطأ، حاول مجدداً';
+}
+async function doSignup(ev){
+  if(!FB){showErr('لم يكتمل الاتصال بالخادم بعد');return;}
   const n=document.getElementById('s-name').value.trim();
-  const p=document.getElementById('s-pin').value.trim();
-  const p2=document.getElementById('s-pin2').value.trim();
+  const email=document.getElementById('s-email').value.trim();
+  const p=document.getElementById('s-pass').value;
+  const p2=document.getElementById('s-pass2').value;
   if(!n){showErr('الرجاء إدخال الاسم');return;}
-  if(!/^\d{4}$/.test(p)){showErr('مفتاح الدخول يجب أن يكون 4 أرقام');return;}
-  if(p!==p2){showErr('مفتاح الدخول غير متطابق');return;}
-  if(users[n.toLowerCase()]){showErr('هذا الاسم مسجل مسبقاً');return;}
-  users[n.toLowerCase()]={name:n,pin:p,meds:[],history:{}};
-  save();
-  toast('✓ تم إنشاء الحساب');
-  document.getElementById('l-name').value=n;
-  goLogin();
+  if(!email){showErr('أدخل البريد الإلكتروني');return;}
+  if(p.length<6){showErr('كلمة السر 6 أحرف على الأقل');return;}
+  if(p!==p2){showErr('كلمة السر غير متطابقة');return;}
+  clearErr();
+  const btn=ev&&ev.target; if(btn){btn.disabled=true;btn.textContent='جارٍ الإنشاء…';}
+  pendingName=n;
+  try{ await FB.createUserWithEmailAndPassword(FB.auth,email,p); }
+  catch(e){ showErr(authErr(e)); pendingName=''; }
+  if(btn){btn.disabled=false;btn.textContent='إنشاء الحساب';}
 }
-
-function doLogin(){
-  const n=document.getElementById('l-name').value.trim();
-  const p=document.getElementById('l-pin').value.trim();
-  if(!n||!p){showErr('أدخل الاسم ومفتاح الدخول');return;}
-  const u=users[n.toLowerCase()];
-  if(!u){showErr('الاسم غير موجود — أنشئ حساباً جديداً');return;}
-  if(u.pin!==p){showErr('مفتاح الدخول غير صحيح');return;}
-  session={name:u.name,pin:p};
-  meds=u.meds||[]; history=u.history||{};
-  nextId=meds.length?Math.max(...meds.map(m=>m.id))+1:1;
-  save();
-  enterApp();
+async function doLogin(ev){
+  if(!FB){showErr('لم يكتمل الاتصال بالخادم بعد');return;}
+  const email=document.getElementById('l-email').value.trim();
+  const p=document.getElementById('l-pass').value;
+  if(!email||!p){showErr('أدخل البريد وكلمة السر');return;}
+  clearErr();
+  const btn=ev&&ev.target; if(btn){btn.disabled=true;btn.textContent='جارٍ الدخول…';}
+  try{ await FB.signInWithEmailAndPassword(FB.auth,email,p); }
+  catch(e){ showErr(authErr(e)); }
+  if(btn){btn.disabled=false;btn.textContent='دخول';}
 }
-
-function doLogout(){
+async function doLogout(){
   stopTimers();
-  saveUser();
-  localStorage.removeItem('dawai_session');
-  session=null;
+  try{ await cloudSave(); }catch(e){}
+  try{ await FB.signOut(FB.auth); }catch(e){}
+}
+function showLogin(){
   document.getElementById('login-screen').style.display='flex';
-  document.getElementById('l-pin').value='';
+  const lp=document.getElementById('l-pass'); if(lp) lp.value='';
   goLogin();
+}
+function startAuth(){
+  authStarted=true;
+  FB=window.FB;
+  if(!FB){ showLogin(); showErr('تعذّر الاتصال بالخادم — تحقّق من الإنترنت'); return; }
+  FB.onAuthStateChanged(FB.auth, async (user)=>{
+    if(user){
+      session={uid:user.uid,email:user.email,name:(user.displayName||user.email.split('@')[0])};
+      await cloudLoad(user.uid);
+      enterApp();
+    } else {
+      stopTimers();
+      session=null; meds=[]; history={};
+      showLogin();
+    }
+  });
 }
 
 function enterApp(){
@@ -802,19 +884,6 @@ function showMissedAlert(names){
     <button onclick="document.getElementById('missed-alert').remove()" style="width:100%;height:44px;background:var(--red);color:white;border:none;border-radius:var(--radius-sm);font-size:14px;font-family:inherit;cursor:pointer">حسناً، سأتناولها الآن</button>
   </div>`;
   document.body.appendChild(div);
-}
-
-function seedDemo(){
-  users['تجريبي']={name:'مستخدم تجريبي',pin:'1234',meds:[
-    {id:1,name:'باراسيتامول',dose:'500mg',time:'08:00',period:'morning',qty:90,daily:1,warnAt:10},
-    {id:2,name:'فيتامين د',dose:'1000 IU',time:'13:00',period:'noon',qty:28,daily:1,warnAt:10},
-    {id:3,name:'أوميغا 3',dose:'كبسولة',time:'21:00',period:'night',qty:7,daily:1,warnAt:10},
-  ],history:{}};
-  // seed 30 days history
-  const u=users['تجريبي'];
-  for(let i=1;i<=30;i++){const d=new Date(TODAY);d.setDate(d.getDate()-i);const k=dk(d);u.history[k]={};u.meds.forEach(m=>{u.history[k][m.id]=Math.random()>0.18;});}
-  const tk=dk(TODAY);u.history[tk]={};u.meds.forEach((m,i)=>{u.history[tk][m.id]=i===0;});
-  save();
 }
 
 // ═══════════════════════════════════
@@ -1182,6 +1251,7 @@ function togs(key){
 function saveS(){
   settings.offset=parseInt(document.getElementById('offset-sel').value)||10;
   try{localStorage.setItem('dawai_settings',JSON.stringify(settings));}catch(e){}
+  cacheLocal(); scheduleCloudSave();
   schedAll();
 }
 function renderNotifPage(){
@@ -1362,13 +1432,10 @@ window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredIns
 // ═══════════════════════════════════
 // INIT
 // ═══════════════════════════════════
-if(!load()){
-  // first time: seed demo account
-  if(!users['تجريبي']) seedDemo();
-  document.getElementById('login-screen').style.display='flex';
-} else {
-  enterApp();
-}
+if(window.FB || window.FB_ERROR){ startAuth(); }
+else { window.addEventListener('fb-ready', startAuth, {once:true}); }
+window.addEventListener('online', ()=>{ if(session) cloudSave(); });
+setTimeout(()=>{ if(!authStarted){ showLogin(); showErr('تعذّر تحميل الخادم — تحقّق من الإنترنت وأعد المحاولة'); } }, 8000);
 </script>
 
 <script>
