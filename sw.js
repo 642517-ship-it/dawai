@@ -1,4 +1,4 @@
-const CACHE = 'dawai-v16';
+const CACHE = 'dawai-v18';
 const BASE = '/dawai';
 const ASSETS = [
   BASE + '/',
@@ -18,13 +18,15 @@ self.addEventListener('activate', e => {
   );
 });
 self.addEventListener('fetch', e => {
-  // Network first — always try to get fresh content
+  const req = e.request;
+  // Only handle same-origin GET; let Firebase, cross-origin, and POST pass through untouched
+  if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
   e.respondWith(
-    fetch(e.request).then(response => {
+    fetch(req).then(response => {
       const clone = response.clone();
-      caches.open(CACHE).then(c => c.put(e.request, clone));
+      caches.open(CACHE).then(c => c.put(req, clone)).catch(()=>{});
       return response;
-    }).catch(() => caches.match(e.request).then(r => r || caches.match(BASE + '/index.html')))
+    }).catch(() => caches.match(req).then(r => r || caches.match(BASE + '/index.html')))
   );
 });
 self.addEventListener('notificationclick', e => {

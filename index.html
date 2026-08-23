@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0d1117">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -286,6 +286,7 @@ body { font-family: 'IBM Plex Sans Arabic', system-ui, sans-serif; color: var(--
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
   import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
   import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+  import { getMessaging, getToken, onMessage, isSupported } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-messaging.js";
   const firebaseConfig = {
     apiKey: "AIzaSyDUTgwasraPrSCBj_nvWHfszf0VluS35co",
     authDomain: "dawai-50755.firebaseapp.com",
@@ -296,7 +297,9 @@ body { font-family: 'IBM Plex Sans Arabic', system-ui, sans-serif; color: var(--
   };
   try{
     const app = initializeApp(firebaseConfig);
-    window.FB = { auth:getAuth(app), db:getFirestore(app), createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, doc, getDoc, setDoc };
+    let messaging=null;
+    try{ if(await isSupported()) messaging=getMessaging(app); }catch(e){}
+    window.FB = { auth:getAuth(app), db:getFirestore(app), createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, doc, getDoc, setDoc, messaging, getToken, onMessage, VAPID:"BGXiYfVuM3z2nS6SiO1kEhfK_4vCvxd-MvlBNgv3betWDYN1_jIF3rS5JTjf-V-uIT7J9zujrbButnTTr4kcUBA" };
   }catch(e){ window.FB_ERROR = e; }
   window.dispatchEvent(new Event('fb-ready'));
 </script>
@@ -476,7 +479,6 @@ body { font-family: 'IBM Plex Sans Arabic', system-ui, sans-serif; color: var(--
           <div style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:12px">بياناتك تُحفظ على السحابة تلقائياً وتعود عند الدخول من أي جهاز. يمكنك أيضاً تصدير نسخة ملف احتياطية إضافية.</div>
           <button class="test-notif-btn" onclick="exportBackup()">⬇️ تصدير نسخة (ملف)</button>
           <button class="test-notif-btn" onclick="triggerImport()" style="margin-top:8px">⬆️ استيراد نسخة (ملف)</button>
-          <button class="test-notif-btn" onclick="importOldLocal()" style="margin-top:8px">↩️ استيراد بيانات محلية قديمة</button>
           <input type="file" id="backup-file" accept="application/json,.json" style="display:none" onchange="importBackup(event)">
         </div>
       </div>
@@ -587,7 +589,7 @@ let users={}, session=null, meds=[], nextId=1, history={};
 let vY=new Date().getFullYear(), vM=new Date().getMonth();
 let notifTimers=[], settings={ontime:true,before:true,missed:true,stock:true,offset:10};
 let deferredInstallPrompt=null;
-let FB=null, saveTimer=null, pendingName='', authStarted=false;
+let FB=null, saveTimer=null, pendingName='', authStarted=false, tokens={};
 
 const TODAY=new Date();
 
@@ -611,10 +613,11 @@ async function cloudLoad(uid){
       meds=d.meds||[]; history=d.history||{};
       if(d.settings) settings=Object.assign(settings,d.settings);
       if(d.name) session.name=d.name;
+      tokens=d.tokens||{};
       nextId=meds.length?Math.max(...meds.map(m=>m.id))+1:1;
       cacheLocal(); setSync(true);
     } else {
-      meds=[]; history={}; nextId=1;
+      meds=[]; history={}; nextId=1; tokens={};
       if(pendingName) session.name=pendingName;
       await cloudSave();
     }
@@ -626,7 +629,7 @@ async function cloudLoad(uid){
 async function cloudSave(){
   if(!session || !FB) return;
   try{
-    await FB.setDoc(FB.doc(FB.db,'users',session.uid),{meds,history,settings,name:session.name,updatedAt:Date.now()});
+    await FB.setDoc(FB.doc(FB.db,'users',session.uid),{meds,history,settings,name:session.name,tokens,updatedAt:Date.now()});
     setSync(true);
   }catch(e){ setSync(false); }
 }
@@ -641,6 +644,45 @@ function setSync(ok){
   if(!el) return;
   el.textContent = ok ? 'متزامن مع السحابة ✓' : 'بانتظار الاتصال…';
   el.style.color = ok ? 'var(--green-light)' : '#d29922';
+}
+
+// ═══════════════════════════════════
+// PUSH (FCM)
+// ═══════════════════════════════════
+async function enablePush(){
+  if(!('Notification' in window)){ toast('الإشعارات غير مدعومة على هذا المتصفح','a'); return; }
+  let p;
+  try{ p=await Notification.requestPermission(); }catch(e){ p=Notification.permission; }
+  renderNotifPrompt(p); renderNotifPage();
+  if(p!=='granted'){ toast('لم يتم السماح بالإشعارات','r'); return; }
+  schedAll();
+  const ok=await getAndSaveToken();
+  toast(ok?'✓ تم تفعيل الإشعارات':'الإشعارات مفعّلة محلياً (تعذّر ربط السحابة)', ok?'g':'a');
+}
+async function getAndSaveToken(){
+  try{
+    if(!FB||!FB.messaging||!('serviceWorker' in navigator)) return false;
+    const reg=await navigator.serviceWorker.register('firebase-messaging-sw.js',{scope:'/dawai/fcm/'});
+    const token=await FB.getToken(FB.messaging,{vapidKey:FB.VAPID,serviceWorkerRegistration:reg});
+    if(!token) return false;
+    tokens[token]=Date.now();
+    await cloudSave();
+    return true;
+  }catch(e){ return false; }
+}
+async function refreshPushToken(){
+  if(!('Notification' in window)||Notification.permission!=='granted') return;
+  await getAndSaveToken();
+}
+function initForegroundMessages(){
+  try{
+    if(FB&&FB.messaging&&FB.onMessage){
+      FB.onMessage(FB.messaging,(payload)=>{
+        const n=(payload&&(payload.notification||payload.data))||{};
+        toast(('🔔 '+(n.title||'تذكير')+' — '+(n.body||'')).slice(0,90),'g');
+      });
+    }
+  }catch(e){}
 }
 
 // ═══════════════════════════════════
@@ -828,6 +870,7 @@ function startAuth(){
   authStarted=true;
   FB=window.FB;
   if(!FB){ showLogin(); showErr('تعذّر الاتصال بالخادم — تحقّق من الإنترنت'); return; }
+  initForegroundMessages();
   FB.onAuthStateChanged(FB.auth, async (user)=>{
     if(user){
       session={uid:user.uid,email:user.email,name:(user.displayName||user.email.split('@')[0])};
@@ -848,6 +891,7 @@ function enterApp(){
   document.getElementById('gr-name').textContent='مرحباً، '+session.name.split(' ')[0];
   document.getElementById('gr-date').textContent=DNFULL[TODAY.getDay()]+' '+TODAY.getDate()+' '+MONTHS[TODAY.getMonth()]+' '+TODAY.getFullYear();
   checkNotifPerm();
+  refreshPushToken();
   schedAll();
   renderToday();
   buildNavs();
@@ -1194,14 +1238,7 @@ function renderNotifPrompt(perm){
   if(perm==='unsupported'){el.innerHTML='';return;}
   el.innerHTML=`<div class="notif-bar"><div style="font-size:20px">🔔</div><div class="notif-bar-text">فعّل إشعارات الدواء<div class="notif-bar-sub">تنبيه تلقائي عند كل موعد</div></div><button class="notif-bar-btn" onclick="reqNotif()">تفعيل</button></div>`;
 }
-function reqNotif(){
-  Notification.requestPermission().then(p=>{
-    renderNotifPrompt(p);
-    renderNotifPage();
-    if(p==='granted'){toast('✓ تم تفعيل الإشعارات','g');schedAll();}
-    else toast('لم يتم السماح بالإشعارات','r');
-  });
-}
+function reqNotif(){ enablePush(); }
 function sendNotif(title,body){
   if(!('Notification' in window)||Notification.permission!=='granted') return false;
   try{new Notification(title,{body,dir:'rtl',lang:'ar',tag:title});return true;}catch(e){return false;}
