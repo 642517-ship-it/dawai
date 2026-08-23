@@ -2,7 +2,7 @@
   "name": "دوائي — تذكير الدواء",
   "short_name": "دوائي",
   "description": "تطبيق تذكير الدواء مع إدارة المخزون والتقارير الشهرية",
-  "id": "./",
+  "id": "/dawai/",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
