@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>فحص التثبيت — دوائي</title>
+<link rel="manifest" href="manifest.json">
+<style>
+  body{margin:0;padding:14px;background:#0d1117;color:#e6edf3;
+       font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif;font-size:15px;line-height:1.7}
+  h1{font-size:19px;margin:0 0 4px}
+  .sub{color:#8b949e;font-size:13px;margin-bottom:14px}
+  .row{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:10px 12px;margin-bottom:8px}
+  .ttl{font-weight:700;margin-bottom:2px}
+  .val{font-size:13px;color:#c9d1d9;word-break:break-all;direction:ltr;text-align:left;
+       font-family:ui-monospace,Menlo,Consolas,monospace}
+  .ok{border-color:#238636}   .ok .ttl{color:#3fb950}
+  .bad{border-color:#f85149}  .bad .ttl{color:#f85149}
+  .warn{border-color:#d29922} .warn .ttl{color:#d29922}
+  #big{padding:14px;border-radius:10px;font-weight:700;text-align:center;margin-bottom:14px;font-size:16px}
+</style>
+</head>
+<body>
+<h1>فحص قابليّة التثبيت</h1>
+<div class="sub">دوائي — انتظر ٥ ثوانٍ ثمّ صوّر الشاشة كاملة</div>
+<div id="big" style="background:#161b22;border:1px solid #30363d">جارٍ الفحص…</div>
+<div id="out"></div>
+
+<script>
+var out = document.getElementById('out');
+var big = document.getElementById('big');
+var promptFired = false;
+
+function add(title, value, state){
+  var d = document.createElement('div');
+  d.className = 'row ' + (state || '');
+  d.innerHTML = '<div class="ttl">' + title + '</div><div class="val"></div>';
+  d.querySelector('.val').textContent = value;
+  out.appendChild(d);
+}
+
+// 1) الحدث الحاسم
+window.addEventListener('beforeinstallprompt', function(e){
+  e.preventDefault();
+  promptFired = true;
+  big.textContent = '✓ Chrome يعتبر التطبيق قابلاً للتثبيت';
+  big.style.background = '#0f2e16';
+  big.style.borderColor = '#238636';
+  big.style.color = '#3fb950';
+});
+
+// 2) البروتوكول والعنوان
+add('العنوان الحالي', location.href, location.protocol === 'https:' ? 'ok' : 'bad');
+add('البروتوكول', location.protocol, location.protocol === 'https:' ? 'ok' : 'bad');
+
+// 3) وضع العرض الحالي
+var standalone = window.matchMedia('(display-mode: standalone)').matches;
+add('وضع العرض', standalone ? 'standalone (مثبّت)' : 'browser (داخل المتصفّح)', standalone ? 'ok' : 'warn');
+
+// 4) معلومات المتصفّح
+add('User Agent', navigator.userAgent);
+add('اللغة', navigator.language + ' | online: ' + navigator.onLine);
+
+// 5) قراءة manifest
+fetch('manifest.json', {cache:'no-store'})
+  .then(function(r){
+    add('حالة طلب manifest.json', r.status + ' ' + r.statusText + ' | type: ' + (r.headers.get('content-type')||'—'),
+        r.ok ? 'ok' : 'bad');
+    return r.json();
+  })
+  .then(function(m){
+    add('start_url المعلن', String(m.start_url), 'ok');
+    add('start_url بعد الحلّ', new URL(m.start_url, location.href).href, 'ok');
+    add('scope المعلن', String(m.scope), 'ok');
+    add('scope بعد الحلّ', new URL(m.scope || '.', location.href).href, 'ok');
+    add('display', String(m.display), m.display === 'standalone' ? 'ok' : 'bad');
+    add('name / short_name', String(m.name) + ' | ' + String(m.short_name), 'ok');
+    add('عدد الأيقونات', String((m.icons||[]).length), (m.icons||[]).length ? 'ok' : 'bad');
+
+    (m.icons||[]).forEach(function(ic, i){
+      var url = new URL(ic.src, location.href).href;
+      var img = new Image();
+      img.onload = function(){
+        add('أيقونة ' + (i+1) + ' — تحمّلت',
+            ic.src + ' | معلن: ' + ic.sizes + ' | فعلي: ' + img.naturalWidth + 'x' + img.naturalHeight +
+            ' | purpose: ' + (ic.purpose||'—'), 'ok');
+      };
+      img.onerror = function(){
+        add('أيقونة ' + (i+1) + ' — فشل التحميل', url, 'bad');
+      };
+      img.src = url;
+    });
+  })
+  .catch(function(e){ add('خطأ في قراءة manifest', String(e), 'bad'); });
+
+// 6) حالة service workers
+if ('serviceWorker' in navigator){
+  navigator.serviceWorker.getRegistrations().then(function(rs){
+    add('عدد service workers المسجَّلة', String(rs.length), rs.length ? 'ok' : 'bad');
+    rs.forEach(function(r, i){
+      var sw = r.active || r.installing || r.waiting;
+      add('SW ' + (i+1),
+          'scope: ' + r.scope + '\nscript: ' + (sw ? sw.scriptURL : '—') + '\nstate: ' + (sw ? sw.state : '—'),
+          r.active ? 'ok' : 'warn');
+    });
+    add('يتحكّم بهذه الصفحة',
+        navigator.serviceWorker.controller ? navigator.serviceWorker.controller.scriptURL : 'لا يوجد',
+        navigator.serviceWorker.controller ? 'ok' : 'warn');
+  }).catch(function(e){ add('خطأ في فحص SW', String(e), 'bad'); });
+} else {
+  add('serviceWorker', 'غير مدعوم', 'bad');
+}
+
+// 7) هل التطبيق مثبّت مسبقًا
+if (navigator.getInstalledRelatedApps){
+  navigator.getInstalledRelatedApps().then(function(apps){
+    add('تطبيقات مرتبطة مثبّتة', apps.length ? JSON.stringify(apps) : 'لا شيء', 'warn');
+  }).catch(function(e){ add('getInstalledRelatedApps', String(e), 'warn'); });
+} else {
+  add('getInstalledRelatedApps', 'غير متاح', 'warn');
+}
+
+// 8) الإشعارات
+add('إذن الإشعارات', ('Notification' in window) ? Notification.permission : 'غير مدعوم');
+
+// 9) الحكم النهائي بعد 5 ثوانٍ
+setTimeout(function(){
+  if (!promptFired){
+    big.textContent = '✗ لم يُطلق Chrome حدث التثبيت — التطبيق مرفوض';
+    big.style.background = '#3d1417';
+    big.style.borderColor = '#f85149';
+    big.style.color = '#f85149';
+    add('beforeinstallprompt', 'لم يُطلق خلال ٥ ثوانٍ', 'bad');
+  } else {
+    add('beforeinstallprompt', 'أُطلق بنجاح', 'ok');
+  }
+}, 5000);
+</script>
+</body>
+</html>
