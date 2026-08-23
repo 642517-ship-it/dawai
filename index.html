@@ -344,10 +344,7 @@ body { font-family: 'IBM Plex Sans Arabic', system-ui, sans-serif; color: var(--
             <h1 id="gr-name">مرحباً</h1>
             <p id="gr-date"></p>
           </div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <div id="user-av" style="width:36px;height:36px;border-radius:50%;background:var(--green-bg);border:1px solid var(--green-border);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:var(--green-light)">أ</div>
-            <button onclick="doLogout()" style="width:32px;height:32px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;font-size:16px">🔒</button>
-          </div>
+          <button id="user-btn" onclick="openUserMenu()" title="المستخدم" style="width:40px;height:40px;border-radius:50%;border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:19px;cursor:pointer;background:var(--bg2)">👤</button>
         </div>
         <div id="notif-prompt"></div>
         <div id="install-banner">
@@ -359,16 +356,8 @@ body { font-family: 'IBM Plex Sans Arabic', system-ui, sans-serif; color: var(--
           <button id="install-btn" style="height:32px;padding:0 12px;background:var(--green);color:white;border:none;border-radius:8px;font-size:12px;font-family:inherit;cursor:pointer">تثبيت</button>
         </div>
         <div id="stock-alerts"></div>
-        <div class="stats-grid">
-          <div class="stat"><div class="stat-num" id="s-done">0</div><div class="stat-lbl">تم اليوم</div></div>
-          <div class="stat"><div class="stat-num" id="s-pend">0</div><div class="stat-lbl">متبقي</div></div>
-        </div>
         <div class="card">
-          <div class="card-label">جدول اليوم</div>
-          <div class="prog-wrap">
-            <div class="prog-track"><div class="prog-fill" id="prog" style="width:0%"></div></div>
-            <div class="prog-labels"><span id="prog-lbl">0 من 0</span><span id="prog-pct">0%</span></div>
-          </div>
+          <div class="card-label">أدويتي</div>
           <div id="med-list"></div>
         </div>
       </div>
@@ -781,7 +770,7 @@ function toast(msg,type=''){
 // ═══════════════════════════════════
 const SCREENS=['today','stock','report','notif','add'];
 const NAVS=[
-  {id:'today',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><circle cx="12" cy="16" r="2" fill="currentColor" stroke="none"/></svg>',lbl:'اليوم'},
+  {id:'today',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><circle cx="12" cy="16" r="2" fill="currentColor" stroke="none"/></svg>',lbl:'الرئيسية'},
   {id:'stock',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M3 12h18M3 18h18"/><circle cx="7" cy="6" r="1.5" fill="currentColor" stroke="none"/><circle cx="7" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="7" cy="18" r="1.5" fill="currentColor" stroke="none"/></svg>',lbl:'المخزون'},
   {id:'report',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><polyline points="7,17 11,12 15,14 20,8"/></svg>',lbl:'التقرير'},
   {id:'notif',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>',lbl:'إشعارات'},
@@ -900,11 +889,70 @@ function safeRun(name, fn){
 window.addEventListener('error', function(ev){ showDebugErr('window', ev.error || ev.message); });
 window.addEventListener('unhandledrejection', function(ev){ showDebugErr('promise', ev.reason); });
 
+const USER_ICONS=['👤','🧑','👩','👨','🧔','👵','👴','🦰','🧑‍⚕️','🐱','🐼','🦊','🐧','🌟','🌙','🍀'];
+const USER_COLORS=['#238636','#1f6feb','#8957e5','#d29922','#bc4c00','#0f766e','#9e2f6f','#3f6212'];
+function hashStr(x){let h=0;for(let i=0;i<x.length;i++){h=((h<<5)-h+x.charCodeAt(i))|0;}return Math.abs(h);}
+function applyUserIcon(){
+  const b=document.getElementById('user-btn');
+  if(!b||!session) return;
+  const h=hashStr(session.email||session.uid||'x');
+  b.textContent=USER_ICONS[h%USER_ICONS.length];
+  b.style.background=USER_COLORS[h%USER_COLORS.length]+'33';
+  b.style.borderColor=USER_COLORS[h%USER_COLORS.length];
+}
+function openUserMenu(){
+  if(document.getElementById('user-menu')) return;
+  const d=document.createElement('div');
+  d.id='user-menu';
+  d.style.cssText='position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;padding:24px';
+  d.innerHTML=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:18px;width:100%;max-width:320px">
+    <div style="font-size:15px;font-weight:600;margin-bottom:4px">${session?session.name:''}</div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:16px">${session?session.email:''}</div>
+    <button id="um-switch" style="width:100%;height:42px;margin-bottom:8px;border-radius:10px;border:1px solid var(--border2);background:transparent;color:var(--text);font-family:inherit;font-size:14px;cursor:pointer">🔄 تبديل المستخدم</button>
+    <button id="um-out" style="width:100%;height:42px;margin-bottom:8px;border-radius:10px;border:none;background:var(--red,#da3633);color:#fff;font-family:inherit;font-size:14px;cursor:pointer">🚪 خروج</button>
+    <button id="um-cancel" style="width:100%;height:38px;border-radius:10px;border:none;background:transparent;color:var(--text2);font-family:inherit;font-size:13px;cursor:pointer">إلغاء</button>
+  </div>`;
+  document.body.appendChild(d);
+  const close=()=>d.remove();
+  d.onclick=e=>{ if(e.target===d) close(); };
+  d.querySelector('#um-cancel').onclick=close;
+  d.querySelector('#um-out').onclick=()=>{ close(); doLogout(); };
+  d.querySelector('#um-switch').onclick=()=>{ close(); doLogout(); };
+}
+function maybeAskName(){
+  if(!session) return;
+  const emailPrefix=(session.email||'').split('@')[0];
+  const n=(session.name||'').trim();
+  if(n && n!==emailPrefix) return;
+  if(document.getElementById('name-modal')) return;
+  const d=document.createElement('div');
+  d.id='name-modal';
+  d.style.cssText='position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;padding:24px';
+  d.innerHTML=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:20px;width:100%;max-width:340px">
+    <div style="font-size:16px;font-weight:600;margin-bottom:6px">ما اسمك؟</div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:14px">سيُستخدم في الترحيب داخل التطبيق</div>
+    <input id="nm-input" type="text" placeholder="الاسم" style="width:100%;height:44px;padding:0 12px;border-radius:10px;border:1px solid var(--border2);background:var(--bg);color:var(--text);font-family:inherit;font-size:15px;margin-bottom:12px">
+    <button id="nm-save" style="width:100%;height:44px;border-radius:10px;border:none;background:var(--green,#238636);color:#fff;font-family:inherit;font-size:15px;cursor:pointer">حفظ</button>
+  </div>`;
+  document.body.appendChild(d);
+  const inp=d.querySelector('#nm-input');
+  setTimeout(()=>inp.focus(),100);
+  const save=()=>{
+    const v=inp.value.trim();
+    if(!v){ inp.style.borderColor='var(--red,#da3633)'; return; }
+    session.name=v;
+    document.getElementById('gr-name').textContent='مرحباً '+v.split(' ')[0];
+    saveUser();
+    d.remove();
+  };
+  d.querySelector('#nm-save').onclick=save;
+  inp.addEventListener('keydown',e=>{ if(e.key==='Enter') save(); });
+}
+
 function enterApp(){
   document.getElementById('login-screen').style.display='none';
-  const ini=session.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-  document.getElementById('user-av').textContent=ini;
-  document.getElementById('gr-name').textContent='مرحباً، '+session.name.split(' ')[0];
+  applyUserIcon();
+  document.getElementById('gr-name').textContent='مرحباً '+session.name.split(' ')[0];
   document.getElementById('gr-date').textContent=DNFULL[TODAY.getDay()]+' '+TODAY.getDate()+' '+MONTHS[TODAY.getMonth()]+' '+TODAY.getFullYear();
   buildNavs();
   safeRun('checkNotifPerm', checkNotifPerm);
@@ -913,6 +961,7 @@ function enterApp(){
   safeRun('renderToday', renderToday);
   safeRun('checkInstall', checkInstall);
   safeRun('checkMissedOnOpen', checkMissedOnOpen);
+  safeRun('maybeAskName', maybeAskName);
 }
 function checkMissedOnOpen(){
   const now=nowM();
@@ -963,50 +1012,41 @@ function isMedScheduledToday(m){
   }
   return true;
 }
+function fmtDaysLine(m){
+  const freq=m.freq||'daily';
+  if(freq==='daily') return 'يوميًّا';
+  if(freq==='once')  return 'مرّة واحدة';
+  if(freq==='weekly'){
+    if(m.days&&m.days.length) return m.days.map(d=>DAY_SHORT[d]).join('، ');
+    return 'أسبوعيًّا';
+  }
+  return 'يوميًّا';
+}
+function medTimes(m){
+  const slots=(m.slots&&m.slots.length)?m.slots:[{time:m.time,period:m.period}];
+  return slots.map(sl=>sl.time).filter(Boolean).join('، ');
+}
 function renderToday(){
   renderStockAlerts();
-  const rec=history[tdyk()]||{};
-  const todayMeds=meds.filter(isMedScheduledToday);
-  // expand multi-dose slots into individual entries
-  let entries=[];
-  todayMeds.forEach(m=>{
-    const slots=m.slots&&m.slots.length>1?m.slots:[{time:m.time,period:m.period}];
-    slots.forEach((sl,si)=>{
-      entries.push({m,slotIdx:si,time:sl.time,period:sl.period,slotKey:m.id+'_'+si});
-    });
-  });
-  entries.sort((a,b)=>t2m(a.time)-t2m(b.time));
-  // count done: per-med (all slots done = med done)
-  const medDone=todayMeds.filter(m=>{
-    const slots=m.slots&&m.slots.length>1?m.slots:[null];
-    return slots.every((_,si)=>rec[m.id+'_'+si]||rec[m.id]);
-  }).length;
-  const total=todayMeds.length;
-  document.getElementById('s-done').textContent=medDone;
-  document.getElementById('s-pend').textContent=total-medDone;
-  const pct=total?Math.round(medDone/total*100):0;
-  document.getElementById('prog').style.width=pct+'%';
-  document.getElementById('prog-lbl').textContent=medDone+' من '+total;
-  document.getElementById('prog-pct').textContent=pct+'%';
   const el=document.getElementById('med-list');
-  if(!entries.length){el.innerHTML='<div class="empty"><span>💊</span>لا توجد أدوية اليوم<br>أضف دواءك الأول من تبويب +</div>';return;}
-  el.innerHTML=entries.map(({m,slotIdx,time,period,slotKey})=>{
-    const doneKey=m.slots&&m.slots.length>1?slotKey:m.id;
-    const isDone=rec[doneKey]||false;
+  if(!el) return;
+  if(!meds.length){
+    el.innerHTML='<div class="empty"><span>💊</span>لا توجد أدوية<br>أضف دواءك الأول من تبويب +</div>';
+    return;
+  }
+  el.innerHTML=meds.map(m=>{
+    const slots=(m.slots&&m.slots.length)?m.slots:[{time:m.time,period:m.period}];
+    const per=slots[0]&&slots[0].period?slots[0].period:(m.period||'morning');
+    const ic=ICONS[per]||'💊';
+    const bg=PBG[per]||'rgba(139,148,158,0.15)';
     const st=stockSt(m);
-    const stockHint=st!=='ok'?` · <span style="color:${st==='crit'?'var(--red-light)':'var(--amber-light)'};font-size:11px">متبقي ${m.qty}</span>`:'';
-    const isLate=false; // التسجيل في أي وقت من اليوم يُعتبر صحيحاً
-    const slotLabel=m.slots&&m.slots.length>1?` <span style="font-size:10px;color:var(--green-light);background:var(--green-bg);padding:1px 6px;border-radius:4px">ج${slotIdx+1}</span>`:'';
-    const schHint=m.freq==='weekly'&&m.days?` · ${m.days.map(d=>DAY_SHORT[d]).join('،')}`:'';
+    const stockHint=st!=='ok'?` · <span style="color:${st==='warn'?'var(--amber-light)':'var(--red-light)'}">متبقي ${m.qty}</span>`:'';
     return`<div class="med-row">
-      <div class="med-ic" style="background:${PBG[period]}">${ICONS[period]}</div>
+      <div class="med-ic" style="background:${bg}">${ic}</div>
       <div class="med-body">
-        <div class="med-title" style="${isDone?'text-decoration:line-through;opacity:0.4':''}">${m.name}${slotLabel}</div>
-        <div class="med-sub${isLate?' late':''}">${time} · ${m.dose}${schHint}${stockHint}</div>
+        <div class="med-title">${m.name} · ${m.dose||'جرعة'}</div>
+        <div class="med-sub">${medTimes(m)} · ${fmtDaysLine(m)}${stockHint}</div>
       </div>
-      <button class="pill-check${isDone?' done':''}" onclick="toggleSlot(${m.id},${slotIdx},${!!(m.slots&&m.slots.length>1)})">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="20,6 9,17 4,12"/></svg>
-      </button>
     </div>`;
   }).join('');
 }
@@ -1036,21 +1076,51 @@ function toggleSlot(id, slotIdx, isMultiStr){
 // keep old toggleMed for backward compat with existing data
 function toggleMed(id){ toggleSlot(id,0,false); }
 
+function missedList(){
+  const now=nowM();
+  const rec=history[tdyk()]||{};
+  const out=[];
+  meds.forEach(m=>{
+    if(!isMedScheduledToday(m)) return;
+    const slots=(m.slots&&m.slots.length)?m.slots:[{time:m.time}];
+    slots.forEach((sl,si)=>{
+      if(!sl.time) return;
+      const key=slots.length>1?(m.id+'_'+si):m.id;
+      if(t2m(sl.time)<now && !rec[key] && !rec[m.id]) out.push({name:m.name,time:sl.time});
+    });
+  });
+  return out;
+}
 function renderStockAlerts(){
   const el=document.getElementById('stock-alerts');
-  const alerts=meds.filter(m=>stockSt(m)!=='ok');
-  if(!alerts.length){el.innerHTML='';return;}
+  if(!el) return;
+  const stock=meds.filter(m=>stockSt(m)!=='ok');
+  let missed=[];
+  try{ missed=missedList(); }catch(e){ missed=[]; }
+  if(!stock.length && !missed.length){ el.innerHTML=''; return; }
+  let rows='';
+  stock.forEach(m=>{
+    const st=stockSt(m), dl=daysLeft(m), isCrit=(st==='crit'||st==='empty');
+    rows+=`<div class="alert ${isCrit?'alert-danger':'alert-warn'}">
+      <div class="alert-ic">${isCrit?'🚨':'⚠️'}</div>
+      <div class="alert-body">
+        <div class="alert-title">${m.name}</div>
+        <div class="alert-sub">متبقي ${m.qty} حبة${dl<999?' · يكفي '+dl+' يوم':''}</div>
+      </div>
+    </div>`;
+  });
+  missed.forEach(x=>{
+    rows+=`<div class="alert alert-warn">
+      <div class="alert-ic">⏰</div>
+      <div class="alert-body">
+        <div class="alert-title">${x.name}</div>
+        <div class="alert-sub">لم يُتناوَل في موعده (${x.time})</div>
+      </div>
+    </div>`;
+  });
   el.innerHTML=`<div class="card" style="margin-bottom:12px">
-    <div class="card-label">⚠ تنبيهات المخزون</div>
-    ${alerts.map(m=>{
-      const st=stockSt(m),dl=daysLeft(m),isCrit=st==='crit'||st==='empty';
-      return`<div class="alert ${isCrit?'alert-danger':'alert-warn'}">
-        <div class="alert-ic">${isCrit?'🚨':'⚠️'}</div>
-        <div class="alert-body">
-          <div class="alert-title">${m.name}</div>
-          <div class="alert-sub">متبقي ${m.qty} حبة${dl<999?' · يكفي '+dl+' يوم':''}</div>
-        </div>
-      </div>`;}).join('')}
+    <div class="card-label">⚠ تنبيهات</div>
+    ${rows}
   </div>`;
 }
 
