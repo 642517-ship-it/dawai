@@ -884,19 +884,35 @@ function startAuth(){
   });
 }
 
+function showDebugErr(where, e){
+  let box=document.getElementById('dbg-err');
+  if(!box){
+    box=document.createElement('div');
+    box.id='dbg-err';
+    box.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#3d1417;color:#ff9d96;border-bottom:2px solid #f85149;padding:10px 12px;font-size:12px;line-height:1.6;font-family:ui-monospace,monospace;direction:ltr;text-align:left;max-height:45vh;overflow:auto;white-space:pre-wrap';
+    document.body.appendChild(box);
+  }
+  box.textContent += '[' + where + '] ' + (e && e.message ? e.message : String(e)) + '\n' + ((e && e.stack) ? String(e.stack).split('\n').slice(0,3).join('\n') : '') + '\n\n';
+}
+function safeRun(name, fn){
+  try { return fn(); } catch(e){ showDebugErr(name, e); }
+}
+window.addEventListener('error', function(ev){ showDebugErr('window', ev.error || ev.message); });
+window.addEventListener('unhandledrejection', function(ev){ showDebugErr('promise', ev.reason); });
+
 function enterApp(){
   document.getElementById('login-screen').style.display='none';
   const ini=session.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
   document.getElementById('user-av').textContent=ini;
   document.getElementById('gr-name').textContent='مرحباً، '+session.name.split(' ')[0];
   document.getElementById('gr-date').textContent=DNFULL[TODAY.getDay()]+' '+TODAY.getDate()+' '+MONTHS[TODAY.getMonth()]+' '+TODAY.getFullYear();
-  checkNotifPerm();
-  refreshPushToken();
-  schedAll();
-  renderToday();
   buildNavs();
-  checkInstall();
-  checkMissedOnOpen();
+  safeRun('checkNotifPerm', checkNotifPerm);
+  safeRun('refreshPushToken', refreshPushToken);
+  safeRun('schedAll', schedAll);
+  safeRun('renderToday', renderToday);
+  safeRun('checkInstall', checkInstall);
+  safeRun('checkMissedOnOpen', checkMissedOnOpen);
 }
 function checkMissedOnOpen(){
   const now=nowM();
