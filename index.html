@@ -1004,7 +1004,7 @@ function renderToday(){
         <div class="med-title" style="${isDone?'text-decoration:line-through;opacity:0.4':''}">${m.name}${slotLabel}</div>
         <div class="med-sub${isLate?' late':''}">${time} · ${m.dose}${schHint}${stockHint}</div>
       </div>
-      <button class="pill-check${isDone?' done':''}" onclick="toggleSlot(${m.id},${slotIdx},'${JSON.stringify(m.slots&&m.slots.length>1).toString()}')">
+      <button class="pill-check${isDone?' done':''}" onclick="toggleSlot(${m.id},${slotIdx},${!!(m.slots&&m.slots.length>1)})">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="20,6 9,17 4,12"/></svg>
       </button>
     </div>`;
