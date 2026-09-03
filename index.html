@@ -892,14 +892,15 @@ function safeRun(name, fn){
 window.addEventListener('error', function(ev){ showDebugErr('window', ev.error || ev.message); });
 window.addEventListener('unhandledrejection', function(ev){ showDebugErr('promise', ev.reason); });
 
-const USER_ICONS=['👤','🧑','👩','👨','🧔','👵','👴','🦰','🧑‍⚕️','🐱','🐼','🦊','🐧','🌟','🌙','🍀'];
+const USER_ICONS=['👤','🧑','👩','👨','🧔','👵','👴','🧑‍⚕️','🦊','🐱','🐶','🐰','🐻','🐼','🦁','🐯','🐨','🐸','🐵','🐧','🦉','🐷','🐮','🐹','🦄','🐢','🐙','🦋','🐝','🌟','🌙','🍀'];
 const USER_COLORS=['#238636','#1f6feb','#8957e5','#d29922','#bc4c00','#0f766e','#9e2f6f','#3f6212'];
 function hashStr(x){let h=0;for(let i=0;i<x.length;i++){h=((h<<5)-h+x.charCodeAt(i))|0;}return Math.abs(h);}
 function applyUserIcon(){
   const b=document.getElementById('user-btn');
   if(!b||!session) return;
   const h=hashStr(session.email||session.uid||'x');
-  b.textContent=USER_ICONS[h%USER_ICONS.length];
+  const icon=(settings&&settings.avatar)?settings.avatar:USER_ICONS[h%USER_ICONS.length];
+  b.textContent=icon;
   b.style.background=USER_COLORS[h%USER_COLORS.length]+'33';
   b.style.borderColor=USER_COLORS[h%USER_COLORS.length];
 }
@@ -911,11 +912,28 @@ function openUserMenu(){
   d.innerHTML=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:18px;width:100%;max-width:320px">
     <div style="font-size:15px;font-weight:600;margin-bottom:4px">${session?session.name:''}</div>
     <div style="font-size:12px;color:var(--text2);margin-bottom:16px">${session?session.email:''}</div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:8px">الصورة الشخصية</div>
+    <div id="um-icons" style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:16px"></div>
     <button id="um-switch" style="width:100%;height:42px;margin-bottom:8px;border-radius:10px;border:1px solid var(--border2);background:transparent;color:var(--text);font-family:inherit;font-size:14px;cursor:pointer">🔄 تبديل المستخدم</button>
     <button id="um-out" style="width:100%;height:42px;margin-bottom:8px;border-radius:10px;border:none;background:var(--red,#da3633);color:#fff;font-family:inherit;font-size:14px;cursor:pointer">🚪 خروج</button>
     <button id="um-cancel" style="width:100%;height:38px;border-radius:10px;border:none;background:transparent;color:var(--text2);font-family:inherit;font-size:13px;cursor:pointer">إلغاء</button>
   </div>`;
   document.body.appendChild(d);
+  const cur=(settings&&settings.avatar)||'';
+  const grid=d.querySelector('#um-icons');
+  if(grid){
+    grid.innerHTML=USER_ICONS.map(ic=>`<button data-ic="${ic}" style="height:40px;font-size:20px;border-radius:9px;border:2px solid ${ic===cur?'var(--green)':'var(--border2)'};background:${ic===cur?'rgba(35,134,54,0.15)':'transparent'};cursor:pointer">${ic}</button>`).join('');
+    grid.querySelectorAll('button').forEach(bt=>{
+      bt.onclick=()=>{
+        if(!settings) settings={};
+        settings.avatar=bt.getAttribute('data-ic');
+        saveUser();
+        applyUserIcon();
+        grid.querySelectorAll('button').forEach(x=>{ x.style.borderColor='var(--border2)'; x.style.background='transparent'; });
+        bt.style.borderColor='var(--green)'; bt.style.background='rgba(35,134,54,0.15)';
+      };
+    });
+  }
   const close=()=>d.remove();
   d.onclick=e=>{ if(e.target===d) close(); };
   d.querySelector('#um-cancel').onclick=close;
