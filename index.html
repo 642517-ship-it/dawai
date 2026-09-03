@@ -277,6 +277,8 @@ body { font-family: 'IBM Plex Sans Arabic', system-ui, sans-serif; color: var(--
 /* INSTALL BANNER */
 #install-banner { background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--radius); padding: 14px; margin-bottom: 12px; display: none; }
 #install-banner.show { display: flex; align-items: center; gap: 12px; }
+.take-btn { width: 36px; height: 36px; flex-shrink: 0; border: 2px solid var(--border2); border-radius: 9px; background: transparent; color: #fff; font-size: 18px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; font-family: inherit; transition: all .15s; }
+.take-btn.done { border-color: var(--green); background: var(--green); }
 </style>
 </head>
 <body>
@@ -356,6 +358,7 @@ body { font-family: 'IBM Plex Sans Arabic', system-ui, sans-serif; color: var(--
           <button id="install-btn" style="height:32px;padding:0 12px;background:var(--green);color:white;border:none;border-radius:8px;font-size:12px;font-family:inherit;cursor:pointer">تثبيت</button>
         </div>
         <div id="stock-alerts"></div>
+        <div id="today-meds"></div>
         <div class="card">
           <div class="card-label">أدويتي</div>
           <div id="med-list"></div>
@@ -1026,8 +1029,47 @@ function medTimes(m){
   const slots=(m.slots&&m.slots.length)?m.slots:[{time:m.time,period:m.period}];
   return slots.map(sl=>sl.time).filter(Boolean).join('، ');
 }
+function renderTodayMeds(){
+  const el=document.getElementById('today-meds');
+  if(!el) return;
+  const k=tdyk();
+  const rec=history[k]||{};
+  const due=meds.filter(m=>isMedScheduledToday(m));
+  if(!due.length){ el.innerHTML=''; return; }
+  const rows=due.map(m=>{
+    const slots=(m.slots&&m.slots.length)?m.slots:[{time:m.time,period:m.period}];
+    const per=(slots[0]&&slots[0].period)?slots[0].period:(m.period||'morning');
+    const ic=ICONS[per]||'💊';
+    const bg=PBG[per]||'rgba(139,148,158,0.15)';
+    const done=!!rec[m.id];
+    return`<div class="med-row">
+      <div class="med-ic" style="background:${bg}">${ic}</div>
+      <div style="flex:1;min-width:0">
+        <div class="med-title">${m.name} · ${m.dose||'جرعة'}</div>
+        <div class="med-sub">${medTimes(m)}</div>
+      </div>
+      <button class="take-btn ${done?'done':''}" onclick="takeTodayMed(${m.id})" aria-label="تحديد التناول">${done?'✓':''}</button>
+    </div>`;
+  }).join('');
+  const total=due.length, taken=due.filter(m=>rec[m.id]).length;
+  el.innerHTML=`<div class="card" style="margin-bottom:12px">
+    <div class="card-label">💊 أدوية اليوم <span style="color:var(--text2);font-weight:400">(${taken}/${total})</span></div>
+    ${rows}
+  </div>`;
+}
+function takeTodayMed(medId){
+  const k=tdyk();
+  if(!history[k]) history[k]={};
+  const isDone=history[k][medId]||false;
+  history[k][medId]=!isDone;
+  const med=meds.find(m=>m.id===medId);
+  if(med){ med.qty = !isDone ? Math.max(0,med.qty-1) : med.qty+1; }
+  saveUser();
+  renderToday();
+}
 function renderToday(){
   renderStockAlerts();
+  renderTodayMeds();
   const el=document.getElementById('med-list');
   if(!el) return;
   if(!meds.length){
